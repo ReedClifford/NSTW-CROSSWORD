@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Crossword – NSTW 2025 (Touch TV)</title>
+<style>
+  :root{
+    --gap: 2px;
+    --cell-min: 62px;          /* bigger tap size per cell */
+    --focus-outline: 4px;
+    --board-size: 680px;       /* JS will update this */
+    --kb-row: 64px;            /* keyboard row height (JS updates) */
+
+    --ink: #0f172a;
+    --accent: #5b8cff;
+    --accent-soft: #e9f2ff;
+    --ok: #22c55e;
+    --bad: #ef4444;
+    --glass: rgba(255,255,255,.10);  /* ultra-light glass */
+    --glass-strong: rgba(255,255,255,.18);
+    --ink-soft: #b9c2d0;
+  }
+
+  /* lock the page, no scroll */
+  html, body { height: 100%; overflow: hidden; }
+  * { box-sizing: border-box; }
+
+  body{
+    margin:0;
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:#f8fafc;
+    -webkit-tap-highlight-color: transparent;
+
+    /* darker background overlay */
+    background:
+      radial-gradient(1100px 700px at 80% 20%, rgba(0,0,0,.25), transparent 60%),
+      linear-gradient(rgba(0,0,0,.48), rgba(0,0,0,.48)),
+      url("assets/POWERPOINT COVER PAGE.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
+  .app {
+    height: 100vh; max-width: 100vw;
+    margin: 0 auto; padding: 16px 18px;
+    user-select: none; outline: none;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* Top bar */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .brand {
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand h1 { font-size: clamp(20px, 2.6vw, 34px); margin: 0; font-weight: 900; letter-spacing:.2px; }
+  .brand small { opacity:.85; font-weight:600; color: var(--ink-soft); }
+
+  .buttons { display:flex; gap:10px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; padding: 12px 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,.28);
+    background: var(--glass); color:#fff; cursor: pointer; touch-action: manipulation;
+    backdrop-filter: blur(10px) saturate(130%); -webkit-backdrop-filter: blur(10px) saturate(130%);
+    box-shadow: 0 6px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.08);
+    transition: transform .08s ease, background .15s ease;
+  }
+  .btn:active { transform: translateY(1px) scale(.99); }
+  .btn.primary { background: var(--glass-strong); border-color: rgba(255,255,255,.36); }
+  .btn.badge { position: relative; padding-left: 14px; padding-right: 14px; }
+  .btn .badge-dot { width:8px; height:8px; border-radius:50%; background:#22d3ee; display:inline-block; margin-left:8px; }
+
+  /* Progress bar */
+  .progress {
+    height: 6px; width: 100%;
+    background: rgba(255,255,255,.18);
+    border-radius: 999px; overflow: hidden;
+  }
+  .progress > i {
+    display:block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #22d3ee, #38bdf8, #60a5fa);
+    transition: width .25s ease;
+  }
+
+  /* Layout frame (board + keyboard centered) */
+  .stage {
+    display:grid; place-items:center; gap: 14px;
+    height: calc(100vh - 120px); /* remaining after topbar+progress */
+    min-height: 420px;
+  }
+
+  .board-wrap { display:flex; flex-direction:column; align-items:center; gap: 12px; }
+
+  .board {
+    width: var(--board-size);
+    height: var(--board-size);
+    background: rgba(255,255,255,.06);
+    display: grid; gap: var(--gap);
+    touch-action: manipulation;
+    border-radius: 16px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.35);
+    padding: 10px;
+  }
+  .grid {
+    width: 100%; height: 100%;
+    display: grid;
+  }
+
+  .kb-wrap { width: var(--board-size); }
+  .keyboard { display: grid; gap: 8px; }
+  .kb-row { display: grid; grid-auto-rows: var(--kb-row); gap: 8px; }
+  .kb-row.numbers { grid-template-columns: repeat(10, 1fr); } /* 1-9,0 */
+  .kb-row.row1    { grid-template-columns: repeat(13, 1fr); } /* A-M */
+  .kb-row.row2    { grid-template-columns: repeat(13, 1fr); } /* N-Z */
+  .kb-row.actions { grid-template-columns: 1.6fr 3fr 2fr; }
+
+  .keyboard button {
+    border:1px solid rgba(255,255,255,.28); border-radius: 14px; background: var(--glass);
+    color:#fff; font-size: clamp(18px, 2.2vw, 30px); font-weight: 800; letter-spacing:.5px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.08);
+    backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+    transition: transform .08s ease, background .12s ease;
+  }
+  .keyboard button:active { transform: translateY(1px) scale(.99); }
+
+  .hint { text-align:center; font-size: 14px; color:#e2e8f0; opacity:.95; text-shadow: 0 2px 10px rgba(0,0,0,.55); }
+
+  .cell {
+    position:relative; background:rgba(255,255,255,.96); display:grid; place-items:center; font-weight:900;
+    min-width: var(--cell-min); min-height: var(--cell-min);
+    font-size: clamp(20px, 3.8vw, 42px);
+    border-radius: 10px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.08);
+    color:#0b1220;
+  }
+  .cell.block { background:#0b1120; border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .cell.active:not(.block) { background:linear-gradient(#ffffff, #f8fbff); box-shadow: 0 0 0 3px rgba(91,140,255,.18) inset; }
+  .cell.focus:not(.block) {
+    outline: var(--focus-outline) solid var(--accent); outline-offset: -4px; z-index: 2;
+  }
+  .cell.ok    { box-shadow: inset 0 0 0 4px var(--ok); }
+  .cell.bad   { box-shadow: inset 0 0 0 4px var(--bad); }
+
+  .num {
+    position:absolute; top:4px; left:6px; opacity:.85; font-weight:800;
+    font-size: clamp(10px, 1.4vw, 14px); line-height:1; color:#64748b;
+  }
+  .letter { letter-spacing: .5px; }
+
+  /* Floating clues drawer (collapsible) */
+  .clues-drawer {
+    position: fixed; right: 18px; top: 76px; bottom: 18px; width: 360px;
+    background: var(--glass-strong); color:#fff; border: 1px solid rgba(255,255,255,.28);
+    border-radius: 18px; padding: 12px; overflow: hidden;
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  .clues-drawer.collapsed {
+    transform: translateX(390px); opacity: .0; pointer-events: none;
+  }
+  .clues-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .clues-head h2 { margin:0; font-size: 18px; }
+  .clues-body { position:absolute; inset:56px 10px 10px 10px; overflow:auto; }
+  .clue { font-size: 16px; margin: 4px 0; padding: 8px 10px; border-radius: 10px; line-height:1.35;
+          background: transparent; border:1px solid transparent; color:#e5eaf3; }
+  .clue small { opacity:.75; }
+  .clue.active { background: rgba(91,140,255,.20); border-color: rgba(91,140,255,.35); }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: #0b1220; color:#fff; padding: 12px 18px; border-radius: 12px; font-weight: 700;
+    box-shadow: 0 14px 30px rgba(0,0,0,.45);
+  }
+
+  @media (max-width: 980px){
+    .clues-drawer{ width: 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="app" tabindex="0" id="app">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Crossword</h1>
+      <small>NSTW 2025 • Touch TV</small>
+    </div>
+    <div class="buttons">
+      <button class="btn badge" id="btnClues">Clues <span class="badge-dot"></span></button>
+      <button class="btn" id="btnToggle">Across</button>
+      <button class="btn" id="btnClear">Clear </button>
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn primary" id="btnFS">Fullscreen</button>
+    </div>
+  </div>
+
+  <div class="progress"><i id="progressFill"></i></div>
+
+  <div class="stage">
+    <div class="board-wrap">
+      <div class="board">
+        <div class="grid" id="board" aria-label="Crossword board"></div>
+      </div>
+
+      <!-- TOUCH KEYBOARD -->
+      <div class="kb-wrap">
+        <div class="keyboard" id="keyboard">
+          <div class="kb-row numbers" id="kbNumbers"></div>
+          <div class="kb-row row1"    id="kbRow1"></div>
+          <div class="kb-row row2"    id="kbRow2"></div>
+          <div class="kb-row actions" id="kbActions"></div>
+        </div>
+      </div>
+
+      <div class="hint">Tip: Tap a cell to select, tap again to toggle Across/Down. D-pad / Arrow keys work too.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating clues drawer -->
+<aside id="drawer" class="clues-drawer">
+  <div class="clues-head">
+    <h2>Active clue</h2>
+    <button class="btn" id="btnCloseDrawer" style="padding:6px 10px;">Hide</button>
+  </div>
+  <div class="clues-body">
+    <div id="activeClue" class="clue" style="font-weight:800;border:1px dashed rgba(255,255,255,.28);"></div>
+    <h3 style="margin:12px 6px 6px;">Across</h3>
+    <div id="acrossClues"></div>
+    <h3 style="margin:12px 6px 6px;">Down</h3>
+    <div id="downClues"></div>
+  </div>
+</aside>
+
+<script>
+(() => {
+  // ======== Fixed 7×7 layout (null = black) ========
+  const ROWS = 7, COLS = 7;
+  const LAYOUT = [
+    [ null, "",  "",  "",  null, "",  "" ],
+    [ "",   "",  "",  null, "",  "",  "" ],
+    [ "",   "",  "",  "",   "",  "",  "" ],
+    [ "",   null,"",  null, "",  null,"" ],
+    [ "",   "",  "",  "",   "",  "",  "" ],
+    [ null, "",  "",  "",   null, "",  "" ],
+    [ "",   "",  "",  null, "",  "",  "" ],
+  ];
+
+  // ======== SOLUTION letters (across are real tech/science words) ========
+  const SOLUTION = [
+    [ null,'C','A','T', null,'A','I' ],
+    [ 'A','P','P', null,'S','U','N' ],
+    [ 'N','E','T','W', 'O','R','K' ],
+    [ 'I', null,'O', null,'T', null,'A' ],
+    [ 'S','C','I','E', 'N','C','E' ],
+    [ null,'L','A','B', null,'A','I' ],
+    [ 'A','P','P', null,'B','O','T' ],
+  ];
+
+  // ======== Clues aligned with board numbers ========
+  const CLUES_ACROSS = {
+    1:  { clue: "Friendly feline",                  answer: "CAT" },
+    4:  { clue: "Two-letter tech term",             answer: "AI"  },
+    6:  { clue: "Mobile program",                   answer: "APP" },
+    7:  { clue: "Our star (informal)",              answer: "SUN" },
+    8:  { clue: "Interconnected system",            answer: "NETWORK" },
+    10: { clue: "Roman numeral one",                answer: "I"   },
+    11: { clue: "Chemical symbol for oxygen",       answer: "O"   },
+    12: { clue: "Letter after S",                   answer: "T"   },
+    13: { clue: "First letter of the alphabet",     answer: "A"   },
+    14: { clue: "Field that studies knowledge",     answer: "SCIENCE" },
+    18: { clue: "Research workplace",               answer: "LAB" },
+    19: { clue: "Two-letter tech term",             answer: "AI"  },
+    20: { clue: "Phone program",                    answer: "APP" },
+    21: { clue: "Automated helper",                 answer: "BOT" },
+  };
+
+  const CLUES_DOWN = {
+    1:  { clue: "Pattern C-P-E",            answer: "CPE" },
+    2:  { clue: "Pattern A-P-T-O-I-A-P",    answer: "APTOIAP" },
+    3:  { clue: "Letter T",                 answer: "T" },
+    4:  { clue: "Pattern A-U-R",            answer: "AUR" },
+    5:  { clue: "Pattern I-N-K-A-E-I-T",    answer: "INKAEIT" },
+    6:  { clue: "Pattern A-N-I-S",          answer: "ANIS" },
+    7:  { clue: "Pattern S-O-T-N",          answer: "SOTN" },
+    9:  { clue: "Letter W",                 answer: "W" },
+    15: { clue: "Pattern C-L-P",            answer: "CLP" },
+    16: { clue: "Pattern E-B",              answer: "EB" },
+    17: { clue: "Pattern C-A-O",            answer: "CAO" },
+    20: { clue: "Letter A",                 answer: "A" },
+    21: { clue: "Letter B",                 answer: "B" },
+  };
+
+
+  // ── Physical keyboard / remote support (GLOBAL, single-bound) ────────────────
+
+// If you still have this anywhere, delete it:
+// app.addEventListener('keydown', e => { ... });
+
+  const onKey = (e) => {
+    // If focus is on a form control, let it type normally
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.isComposing) return;
+
+    const k = e.key.toUpperCase();
+
+    // Guard: ignore auto-repeat duplicates the browser might send
+    if (e.repeat) { e.preventDefault(); return; }
+
+    // Only handle when it's a single A–Z or 0–9
+    if (/^[A-Z0-9]$/.test(k)) {
+      e.preventDefault();
+      e.stopPropagation();   // avoid any other handler catching this
+      typeKey(k);
+      return;
+    }
+
+    if (e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); backspace(); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); dir = 'across'; moveNext(); return; }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); dir = 'across'; movePrev(); return; }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); dir = 'down';   moveNext(); return; }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); dir = 'down';   movePrev(); return; }
+  };
+
+  // Bind ONCE even if your init code runs again (e.g., hot reload / reset)
+  if (!window.__CROSSWORD_KEYS_BOUND__) {
+    window.addEventListener('keydown', onKey, { capture: true });
+    window.__CROSSWORD_KEYS_BOUND__ = true;
+  }
+
+  // Helpful: after any tap/click that isn’t a text input, refocus the app so arrows work
+  document.addEventListener('pointerdown', (ev) => {
+    const tag = (ev.target.tagName || '').toLowerCase();
+    if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+      app?.focus?.();
+    }
+  }, { passive: true });
+
+
+  // ======== State ========
+  let grid = []; // {r,c,block,letter,num}
+  let focus = { r: 0, c: 0 };
+  let dir = 'across';
+
+  const app = document.getElementById('app');
+  const board = document.getElementById('board');
+  const progressFill = document.getElementById('progressFill');
+  const activeClueEl = document.getElementById('activeClue');
+  const acrossCluesEl = document.getElementById('acrossClues');
+  const downCluesEl = document.getElementById('downClues');
+  const drawer = document.getElementById('drawer');
+
+  // Build TOUCH keyboard rows
+  const kbNumbers = document.getElementById('kbNumbers');
+  const kbRow1    = document.getElementById('kbRow1');
+  const kbRow2    = document.getElementById('kbRow2');
+  const kbActions = document.getElementById('kbActions');
+
+  '1234567890'.split('').forEach(k => kbNumbers.appendChild(makeKey(k, () => typeKey(k))));
+  'ABCDEFGHIJKLM'.split('').forEach(k => kbRow1.appendChild(makeKey(k, () => typeKey(k))));
+  'NOPQRSTUVWXYZ'.split('').forEach(k => kbRow2.appendChild(makeKey(k, () => typeKey(k))));
+  kbActions.appendChild(makeKey('⌫', backspace));
+  kbActions.appendChild(makeKey('ACROSS/DOWN', toggleDir));
+  kbActions.appendChild(makeKey('CLEAR', clearWord));
+
+  function makeKey(label, handler){
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); handler(); if (navigator.vibrate) navigator.vibrate(8); }, {passive:false});
+    return b;
+  }
+
+  // Buttons
+  document.getElementById('btnToggle').addEventListener('click', () => { toggleDir(); app.focus(); });
+  document.getElementById('btnClear').addEventListener('click', clearWord);
+  document.getElementById('btnReset').addEventListener('click', resetPuzzle);
+  document.getElementById('btnFS').addEventListener('click', () => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+  });
+  document.getElementById('btnClues').addEventListener('click', () => drawer.classList.toggle('collapsed'));
+  document.getElementById('btnCloseDrawer').addEventListener('click', () => drawer.classList.add('collapsed'));
+
+  // Physical keyboard / remote support
+  app.addEventListener('keydown', e => {
+    const k = e.key.toUpperCase();
+    if (/^[A-Z0-9]$/.test(k)) { e.preventDefault(); typeKey(k); return; }
+    if (e.key === 'Backspace') { e.preventDefault(); backspace(); return; }
+    if (e.key === 'ArrowRight') { dir = 'across'; moveNext(); return; }
+    if (e.key === 'ArrowLeft')  { dir = 'across'; movePrev(); return; }
+    if (e.key === 'ArrowDown')  { dir = 'down';   moveNext(); return; }
+    if (e.key === 'ArrowUp')    { dir = 'down';   movePrev(); return; }
+  });
+
+  // ======== Build grid & numbering ========
+  function buildGrid() {
+    let n = 0;
+    grid = LAYOUT.map((row,r) => row.map((v,c) => {
+      const block = v === null;
+      const startsAcross = !block && (c===0 || LAYOUT[r][c-1]===null);
+      const startsDown   = !block && (r===0 || LAYOUT[r-1]?.[c]===null);
+      const num = (startsAcross || startsDown) ? ++n : '';
+      return { r, c, block, letter:'', num };
+    }));
+  }
+
+  function renderBoard() {
+    board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+    board.innerHTML = '';
+    grid.flat().forEach(cell => {
+      const el = document.createElement('div');
+      el.className = `cell${cell.block ? ' block':''}`;
+      el.dataset.r = cell.r; el.dataset.c = cell.c;
+
+      if (cell.num) {
+        const s = document.createElement('small'); s.className = 'num'; s.textContent = cell.num;
+        el.appendChild(s);
+      }
+      const span = document.createElement('span'); span.className = 'letter';
+      span.textContent = cell.letter || '';
+      el.appendChild(span);
+
+      el.addEventListener('pointerdown', e => { e.preventDefault(); onCellTap(cell); }, {passive:false});
+      board.appendChild(el);
+    });
+    updateHighlights();
+    renderClues();
+    updateActiveClue();
+    computeLayout();
+    updateProgress();
+  }
+
+  function getCell(r,c){ return grid[r]?.[c]; }
+
+  function onCellTap(cell) {
+    if (cell.block) return;
+    const isSame = (cell.r === focus.r && cell.c === focus.c);
+    if (isSame) dir = dir === 'across' ? 'down' : 'across';
+    focus = { r: cell.r, c: cell.c };
+    if (wordCellsAt(focus.r, focus.c, dir).length === 1) {
+      dir = dir === 'across' ? 'down' : 'across';
+    }
+    updateHighlights();
+    updateActiveClue();
+    save();
+  }
+
+  function wordCellsAt(r,c,d) {
+    const cells = [];
+    if (d === 'across') {
+      let cc = c; while (cc>0 && !getCell(r, cc-1).block) cc--;
+      while (cc < COLS && !getCell(r,cc).block) { cells.push(getCell(r,cc)); cc++; }
+    } else {
+      let rr = r; while (rr>0 && !getCell(rr-1, c).block) rr--;
+      while (rr < ROWS && !getCell(rr,c).block) { cells.push(getCell(rr,c)); rr++; }
+    }
+    return cells;
+  }
+
+  function currentWordCells(){ return wordCellsAt(focus.r, focus.c, dir); }
+
+  function updateHighlights() {
+    board.querySelectorAll('.cell').forEach(el => el.classList.remove('active','focus'));
+    currentWordCells().forEach(c => {
+      const el = cellEl(c.r,c.c); if (el) el.classList.add('active');
+    });
+    const f = cellEl(focus.r, focus.c);
+    if (f && !getCell(focus.r, focus.c).block) f.classList.add('focus');
+    document.getElementById('btnToggle').textContent = dir === 'across' ? 'Across' : 'Down';
+  }
+
+  function cellEl(r,c) {
+    return board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+  }
+
+  // typing
+  function typeKey(k) {
+    const cell = getCell(focus.r, focus.c);
+    if (!cell || cell.block) return;
+    cell.letter = k;
+    cellEl(cell.r, cell.c).querySelector('.letter').textContent = k;
+    moveNext();
+    save();
+    updateProgress();
+    checkIfCompleteThenValidate();
+  }
+  function backspace() {
+    const cell = getCell(focus.r, focus.c);
+    if (!cell || cell.block) return;
+    if (cell.letter) {
+      cell.letter = '';
+      cellEl(cell.r, cell.c).querySelector('.letter').textContent = '';
+      save(); updateProgress(); return;
+    }
+    movePrev();
+  }
+  function moveNext(){
+    const cells = currentWordCells();
+    const idx = cells.findIndex(c => c.r===focus.r && c.c===focus.c);
+    const next = cells[idx+1]; if (next) focus = { r: next.r, c: next.c };
+    updateHighlights();
+  }
+  function movePrev(){
+    const cells = currentWordCells();
+    const idx = cells.findIndex(c => c.r===focus.r && c.c===focus.c);
+    const prev = cells[idx-1]; if (prev) focus = { r: prev.r, c: prev.c };
+    updateHighlights();
+  }
+  function toggleDir(){ dir = (dir === 'across') ? 'down' : 'across'; updateHighlights(); updateActiveClue(); }
+
+  function clearWord(){
+    currentWordCells().forEach(c => {
+      c.letter = ''; cellEl(c.r,c.c).querySelector('.letter').textContent = '';
+      cellEl(c.r,c.c).classList.remove('ok','bad');
+    });
+    save(); updateProgress();
+  }
+
+  // clues
+  function renderClues(){
+    acrossCluesEl.innerHTML = ''; downCluesEl.innerHTML = '';
+    const numbers = grid.flat().filter(c => c.num && !c.block);
+
+    // Across starters
+    numbers.forEach(c => {
+      const leftBlock = (c.c===0 || getCell(c.r, c.c-1).block);
+      if (leftBlock) {
+        const p = document.createElement('div');
+        p.className = 'clue'; p.dataset.num = c.num; p.dataset.dir = 'across';
+        const meta = CLUES_ACROSS[c.num];
+        p.innerHTML = `<strong>${c.num}.</strong> ${meta ? meta.clue : '(Across)'} <small>(${wordCellsAt(c.r,c.c,'across').length})</small>`;
+        p.addEventListener('click', () => { focus={r:c.r,c:c.c}; dir='across'; updateHighlights(); updateActiveClue(); });
+        acrossCluesEl.appendChild(p);
+      }
+    });
+    // Down starters
+    numbers.forEach(c => {
+      const topBlock = (c.r===0 || getCell(c.r-1, c.c).block);
+      if (topBlock) {
+        const p = document.createElement('div');
+        p.className = 'clue'; p.dataset.num = c.num; p.dataset.dir = 'down';
+        const meta = CLUES_DOWN[c.num];
+        p.innerHTML = `<strong>${c.num}.</strong> ${meta ? meta.clue : '(Down)'} <small>(${wordCellsAt(c.r,c.c,'down').length})</small>`;
+        p.addEventListener('click', () => { focus={r:c.r,c:c.c}; dir='down'; updateHighlights(); updateActiveClue(); });
+        downCluesEl.appendChild(p);
+      }
+    });
+  }
+
+  function updateActiveClue(){
+    const cell = getCell(focus.r, focus.c);
+    if (!cell || cell.block){ activeClueEl.textContent = 'Tap any cell to begin.'; return; }
+    const num = startNumForCurrentWord(focus.r, focus.c, dir);
+    const obj = (dir==='across' ? CLUES_ACROSS[num] : CLUES_DOWN[num]);
+    const text = obj ? obj.clue : '';
+    const len = currentWordCells().length;
+    activeClueEl.innerHTML = `<strong>${num}.</strong> ${text} <small>(${len})</small>`;
+    document.querySelectorAll('.clue').forEach(el => el.classList.remove('active'));
+    const el = document.querySelector(`.clue[data-dir="${dir}"][data-num="${num}"]`);
+    if (el) el.classList.add('active');
+  }
+
+  function startNumForCurrentWord(r,c,d){
+    if (d === 'across'){
+      let cc = c; while (cc>0 && !getCell(r,cc-1).block) cc--;
+      return getCell(r,cc).num;
+    } else {
+      let rr = r; while (rr>0 && !getCell(rr-1,c).block) rr--;
+      return getCell(rr,c).num;
+    }
+  }
+
+  // persistence
+  const STORAGE_KEY = 'crossword-nstw2025-v2';
+  function save(){
+    const letters = grid.map(row => row.map(c => c.letter));
+    const data = { letters, focus, dir };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+  function load(){
+    const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return;
+    try {
+      const { letters, focus: f, dir: d } = JSON.parse(raw);
+      letters?.forEach((row,r) => row.forEach((ch,c) => {
+        if (!getCell(r,c).block) { grid[r][c].letter = ch || ''; }
+      }));
+      focus = f || focus; dir = d || dir;
+    } catch {}
+  }
+  function resetPuzzle(){
+    localStorage.removeItem(STORAGE_KEY);
+    buildGrid(); renderBoard();
+    const first = grid.flat().find(c => !c.block);
+    if (first) focus = { r:first.r, c:first.c };
+    updateHighlights(); updateActiveClue(); updateProgress();
+    toast('Puzzle reset.');
+  }
+
+  // ======== Validation & Progress ========
+  function filledCount(){
+    let n = 0;
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (LAYOUT[r][c]===null) continue;
+        if (grid[r][c].letter && grid[r][c].letter.trim()!=='') n++;
+      }
+    }
+    return n;
+  }
+  function totalPlayable(){
+    let n=0;
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (LAYOUT[r][c]!==null) n++;
+    return n;
+  }
+  function updateProgress(){
+    const pct = Math.round((filledCount() / totalPlayable()) * 100);
+    progressFill.style.width = pct + '%';
+  }
+
+  function checkIfCompleteThenValidate(){
+    if (filledCount() < totalPlayable()) return;
+    // Mark each cell ok/bad
+    let allOk = true;
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (LAYOUT[r][c]===null) continue;
+        const el = cellEl(r,c);
+        el.classList.remove('ok','bad');
+        const guess = (grid[r][c].letter||'').toUpperCase();
+        const want  = (SOLUTION[r][c]||'').toUpperCase();
+        if (guess===want){
+          el.classList.add('ok');
+        }else{
+          el.classList.add('bad');
+          allOk = false;
+        }
+      }
+    }
+    if (allOk){
+      confetti();
+      toast('✅ Correct! Puzzle solved.');
+    } else {
+      toast('❌ Some letters are incorrect.');
+      board.animate([
+        { transform:'translateX(0)' }, { transform:'translateX(-6px)' }, { transform:'translateX(6px)' }, { transform:'translateX(0)' }
+      ], { duration: 240, iterations: 1 });
+    }
+  }
+
+  function toast(msg){
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>{ t.remove(); }, 1700);
+  }
+
+  function confetti(){
+    // simple emoji burst
+    const container = document.createElement('div');
+    container.style.position='fixed'; container.style.left='50%'; container.style.top='40%';
+    container.style.transform='translate(-50%,-50%)'; container.style.pointerEvents='none';
+    document.body.appendChild(container);
+    const emojis = ['🎉','✨','🎊','🌟','🟦','🟨'];
+    for(let i=0;i<22;i++){
+      const s = document.createElement('span');
+      s.textContent = emojis[i%emojis.length];
+      s.style.position='absolute';
+      s.style.fontSize = (24 + Math.random()*18) + 'px';
+      s.style.left = '0px'; s.style.top = '0px';
+      container.appendChild(s);
+      const x = (Math.random()*2-1)*240;
+      const y = - (Math.random()*200 + 120);
+      s.animate([{transform:'translate(0,0)'},{transform:`translate(${x}px, ${y}px)`, opacity:.1}], {duration: 900+Math.random()*500, easing:'cubic-bezier(.2,.6,.2,1)'}).onfinish=()=>s.remove();
+    }
+    setTimeout(()=>container.remove(), 1200);
+  }
+
+  // ======== Layout logic: fit to screen (no scroll) ========
+  function computeLayout(){
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const topbarH = document.querySelector('.topbar')?.offsetHeight || 0;
+    const progressH = 6 + 10; // bar + gap
+    const hintH   = 24; // approximate
+    const drawerVisible = !drawer.classList.contains('collapsed');
+    const drawerW = drawerVisible ? (Math.min(360, vw*0.35) + 18) : 0; // drawer + right margin
+
+    // Reserve for keyboard
+    const kbH = Math.max(164, Math.min(360, (vh - topbarH) * 0.30));
+    const kbRow = (kbH / 4) - 8;
+
+    // Remaining for square board
+    const availW = vw - drawerW - 40; // stage paddings
+    const availH = vh - topbarH - progressH - kbH - hintH - 70;
+
+    const size = Math.max(340, Math.min(availW, availH));
+    document.documentElement.style.setProperty('--board-size', size + 'px');
+    document.documentElement.style.setProperty('--kb-row',     Math.max(48, kbRow) + 'px');
+
+    // Grid columns
+    document.getElementById('board').style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+  }
+
+  window.addEventListener('resize', computeLayout);
+  window.addEventListener('orientationchange', computeLayout);
+
+  // ======== Init ========
+  buildGrid();
+  const first = LAYOUT.flat().findIndex(v => v !== null);
+  const fr = Math.floor(first / COLS), fc = first % COLS;
+  if (first >= 0) focus = { r: fr, c: fc };
+  load();
+  renderBoard();
+  queueMicrotask(() => { app.focus(); computeLayout(); });
+})();
+</script>
+</body>
+</html>
