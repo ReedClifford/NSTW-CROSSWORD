@@ -15,7 +15,7 @@
     --board-size: 680px;
     --kb-row: 64px;
     --gutter: 12px;
-    --drawerW: 0px;            /* NEW: reserved space for the drawer */
+    --drawerW: 0px;
     --ink: #0f172a;
     --accent: #5b8cff;
     --ok: #22c55e;
@@ -39,7 +39,7 @@
     background:
       radial-gradient(1100px 700px at 80% 20%, rgba(0,0,0,.25), transparent 60%),
       linear-gradient(rgba(0,0,0,.48), rgba(0,0,0,.48)),
-      url("assets/POWERPOINT COVER PAGE.jpg");
+      url("assets/Background-33.jpg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -79,12 +79,11 @@
   .progress { height:6px; width:100%; background:rgba(255,255,255,.18); border-radius:999px; overflow:hidden; }
   .progress > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#38bdf8,#60a5fa); transition:width .25s ease; }
 
-  /* NEW: reserve horizontal space for the drawer when visible */
   .stage {
     display:grid; place-items:center; gap:12px;
     height: calc(calc(var(--vh) * 100) - 120px); min-height:420px;
-    padding-right: var(--drawerW);          /* <- key line */
-    transition: padding-right .18s ease;    /* smooth when opening/closing */
+    padding-right: var(--drawerW);
+    transition: padding-right .18s ease;
   }
 
   .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
@@ -135,7 +134,6 @@
   .num{ position:absolute; top:4px; left:6px; opacity:.85; font-weight:800; font-size:clamp(10px,3vw,14px); line-height:1; color:#64748b; }
   .letter{ letter-spacing:.5px; }
 
-  /* Drawer: solid panel (not glass) */
   .clues-drawer{
     position: absolute;
     right: var(--gutter);
@@ -194,8 +192,7 @@
     .brand small { display:none; }
   }
 
-  /* Rotate whole UI for landscape-mounted TVs */
-  :root.rotate-90 { 
+  :root.rotate-90 {
     --vh: 1vw;
     --kb-row: 54px;
     --gutter: 28px;
@@ -215,6 +212,7 @@
 </style>
 </head>
 <body>
+
 <div class="app" tabindex="0" id="app">
   <div class="topbar">
     <div class="brand">
@@ -354,17 +352,15 @@
   document.getElementById('btnReset').addEventListener('click', resetPuzzle);
   document.getElementById('btnFS').addEventListener('click', () => { document.documentElement.requestFullscreen?.(); });
 
-  // Toggle drawer and recompute layout  /* NEW */
   document.getElementById('btnClues').addEventListener('click', () => {
     drawer.classList.toggle('collapsed');
-    computeLayout();                        // ensure padding updates
+    computeLayout();
   });
   document.getElementById('btnCloseDrawer').addEventListener('click', () => {
     drawer.classList.add('collapsed');
     computeLayout();
   });
 
-  /* Rotate toggle */
   document.getElementById('btnRotate').addEventListener('click', () => {
     const root = document.documentElement;
     const body = document.body;
@@ -428,22 +424,32 @@
       const el = document.createElement('div');
       el.className = `cell${cell.block?' block':''}`;
       el.dataset.r = cell.r; el.dataset.c = cell.c;
+      // init merged word-state tracking
+      el.dataset.stateacross = '';
+      el.dataset.statedown = '';
+
       if (cell.num){ const s=document.createElement('small'); s.className='num'; s.textContent=cell.num; el.appendChild(s); }
       const span=document.createElement('span'); span.className='letter'; span.textContent=cell.letter||''; el.appendChild(span);
       el.addEventListener('pointerdown', e=>{ e.preventDefault(); onCellTap(cell); }, {passive:false});
       board.appendChild(el);
     });
-    updateHighlights(); renderClues(); updateActiveClue(); computeLayout(); updateProgress();
+    updateHighlights(); renderClues(); updateActiveClue();
+    validateAllWords();                 // recolor saved progress on load/render
+    computeLayout(); updateProgress();
   }
 
   function getCell(r,c){ return grid[r]?.[c]; }
+  function cellEl(r,c){ return board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+
   function onCellTap(cell){
     if (cell.block) return;
     const same = (cell.r===focus.r && cell.c===focus.c);
     if (same) dir = (dir==='across') ? 'down' : 'across';
     focus = { r:cell.r, c:cell.c };
     if (wordCellsAt(focus.r,focus.c,dir).length===1){ dir = (dir==='across')?'down':'across'; }
-    updateHighlights(); updateActiveClue(); save();
+    updateHighlights(); updateActiveClue();
+    validateBothDirectionsAt(focus.r, focus.c); // live feedback on selection
+    save();
   }
 
   function wordCellsAt(r,c,d){
@@ -466,23 +472,109 @@
     if (f && !getCell(focus.r,focus.c).block) f.classList.add('focus');
     document.getElementById('btnToggle').textContent = (dir==='across')?'Across':'Down';
   }
-  function cellEl(r,c){ return board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+
+  // ---------- MERGED WORD-LEVEL VALIDATION ----------
+  function applyMergedState(el){
+    const a = el.dataset.stateacross || '';
+    const d = el.dataset.statedown || '';
+    el.classList.remove('ok','bad');
+    if (a === 'bad' || d === 'bad') {
+      el.classList.add('bad');        // any bad wins
+    } else if (a === 'ok' || d === 'ok') {
+      el.classList.add('ok');         // otherwise any ok
+    }
+  }
+
+  function setWordStateForCell(r,c,dir,state){ // state: 'ok' | 'bad' | ''
+    const el = cellEl(r,c);
+    if (!el) return;
+    if (dir === 'across') el.dataset.stateacross = state || '';
+    else el.dataset.statedown = state || '';
+    applyMergedState(el);
+  }
+
+  function validateWordAt(r, c, d){
+    const cells = wordCellsAt(r, c, d);
+    const guessArr = cells.map(({r,c}) => (grid[r][c].letter || '').toUpperCase());
+    const wantArr  = cells.map(({r,c}) => (SOLUTION[r][c] || '').toUpperCase());
+
+    const complete = guessArr.every(ch => ch); // all letters filled?
+    if (!complete){
+      // clear only this direction's state
+      cells.forEach(({r,c}) => setWordStateForCell(r,c,d,''));
+      return;
+    }
+
+    const correct = guessArr.join('') === wantArr.join('');
+    const state = correct ? 'ok' : 'bad';
+    cells.forEach(({r,c}) => setWordStateForCell(r,c,d,state));
+  }
+
+  function validateBothDirectionsAt(r,c){
+    if (LAYOUT[r][c] === null) return;
+    validateWordAt(r,c,'across');
+    validateWordAt(r,c,'down');
+  }
+
+  function validateAllWords(){
+    // Across starters
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (LAYOUT[r][c]===null) continue;
+        const startsAcross = (c===0 || LAYOUT[r][c-1]===null);
+        if (startsAcross) validateWordAt(r,c,'across');
+      }
+    }
+    // Down starters
+    for (let c=0;c<COLS;c++){
+      for (let r=0;r<ROWS;r++){
+        if (LAYOUT[r][c]===null) continue;
+        const startsDown = (r===0 || LAYOUT[r-1]?.[c]===null);
+        if (startsDown) validateWordAt(r,c,'down');
+      }
+    }
+  }
+  // ---------------------------------------------------
 
   function typeKey(k){
     const cell=getCell(focus.r,focus.c); if (!cell || cell.block) return;
     cell.letter = k;
     cellEl(cell.r,cell.c).querySelector('.letter').textContent = k;
-    moveNext(); save(); updateProgress(); checkIfCompleteThenValidate();
+    validateBothDirectionsAt(cell.r, cell.c); // merged coloring
+    moveNext(); save(); updateProgress();
+    finalCheckIfSolved();                    // safe final check
   }
+
   function backspace(){
     const cell=getCell(focus.r,focus.c); if (!cell || cell.block) return;
-    if (cell.letter){ cell.letter=''; cellEl(cell.r,cell.c).querySelector('.letter').textContent=''; save(); updateProgress(); return; }
+    if (cell.letter){
+      cell.letter='';
+      const el = cellEl(cell.r,cell.c);
+      el.querySelector('.letter').textContent='';
+      // clearing the letter can make either word incomplete -> clears that dir state
+      validateBothDirectionsAt(cell.r, cell.c);
+      save(); updateProgress(); return;
+    }
     movePrev();
   }
+
   function moveNext(){ const cells=currentWordCells(); const idx=cells.findIndex(c=>c.r===focus.r && c.c===focus.c); const next=cells[idx+1]; if (next) focus={r:next.r,c:next.c}; updateHighlights(); }
   function movePrev(){ const cells=currentWordCells(); const idx=cells.findIndex(c=>c.r===focus.r && c.c===focus.c); const prev=cells[idx-1]; if (prev) focus={r:prev.r,c:prev.c}; updateHighlights(); }
-  function toggleDir(){ dir=(dir==='across')?'down':'across'; updateHighlights(); updateActiveClue(); }
-  function clearWord(){ currentWordCells().forEach(c=>{ c.letter=''; cellEl(c.r,c.c).querySelector('.letter').textContent=''; cellEl(c.r,c.c).classList.remove('ok','bad'); }); save(); updateProgress(); }
+  function toggleDir(){ dir=(dir==='across')?'down':'across'; updateHighlights(); updateActiveClue(); validateBothDirectionsAt(focus.r, focus.c); }
+
+  function clearWord(){
+    currentWordCells().forEach(c=>{
+      c.letter='';
+      const el = cellEl(c.r,c.c);
+      el.querySelector('.letter').textContent='';
+      // clear both states for safety
+      el.dataset.stateacross = '';
+      el.dataset.statedown = '';
+      applyMergedState(el);
+    });
+    validateBothDirectionsAt(focus.r, focus.c);
+    save(); updateProgress();
+  }
 
   function renderClues(){
     acrossCluesEl.innerHTML=''; downCluesEl.innerHTML='';
@@ -493,7 +585,7 @@
         const p=document.createElement('div'); p.className='clue'; p.dataset.num=c.num; p.dataset.dir='across';
         const meta=CLUES_ACROSS[c.num];
         p.innerHTML=`<strong>${c.num}.</strong> ${meta?meta.clue:'(Across)'} <small>(${wordCellsAt(c.r,c.c,'across').length})</small>`;
-        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='across'; updateHighlights(); updateActiveClue(); });
+        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='across'; updateHighlights(); updateActiveClue(); validateWordAt(c.r,c.c,'across'); });
         acrossCluesEl.appendChild(p);
       }
     });
@@ -503,7 +595,7 @@
         const p=document.createElement('div'); p.className='clue'; p.dataset.num=c.num; p.dataset.dir='down';
         const meta=CLUES_DOWN[c.num];
         p.innerHTML=`<strong>${c.num}.</strong> ${meta?meta.clue:'(Down)'} <small>(${wordCellsAt(c.r,c.c,'down').length})</small>`;
-        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='down'; updateHighlights(); updateActiveClue(); });
+        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='down'; updateHighlights(); updateActiveClue(); validateWordAt(c.r,c.c,'down'); });
         downCluesEl.appendChild(p);
       }
     });
@@ -536,6 +628,7 @@
       focus=f||focus; dir=d||dir;
     }catch{}
   }
+
   function resetPuzzle(){
     localStorage.removeItem(STORAGE_KEY);
     buildGrid(); renderBoard();
@@ -549,18 +642,35 @@
   function totalPlayable(){ let n=0; for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (LAYOUT[r][c]!==null) n++; return n; }
   function updateProgress(){ progressFill.style.width = Math.round((filledCount()/totalPlayable())*100)+'%'; }
 
-  function checkIfCompleteThenValidate(){
-    if (filledCount()<totalPlayable()) return;
-    let allOk=true;
-    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
-      if (LAYOUT[r][c]===null) continue;
-      const el=cellEl(r,c); el.classList.remove('ok','bad');
-      const guess=(grid[r][c].letter||'').toUpperCase();
-      const want=(SOLUTION[r][c]||'').toUpperCase();
-      if (guess===want) el.classList.add('ok'); else { el.classList.add('bad'); allOk=false; }
+  // Final check that doesn't overwrite persistent word colors
+  function finalCheckIfSolved(){
+    // Check all across starters
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (LAYOUT[r][c]===null) continue;
+        const startsAcross = (c===0 || LAYOUT[r][c-1]===null);
+        if (startsAcross){
+          const cells = wordCellsAt(r,c,'across');
+          const guess = cells.map(({r,c}) => (grid[r][c].letter || '').toUpperCase());
+          const want  = cells.map(({r,c}) => (SOLUTION[r][c]   || '').toUpperCase());
+          if (guess.some(ch => !ch) || guess.join('') !== want.join('')) return;
+        }
+      }
     }
-    if (allOk){ confetti(); toast('✅ Correct! Puzzle solved.'); }
-    else { toast('❌ Some letters are incorrect.'); board.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:240,iterations:1}); }
+    // Check all down starters
+    for (let c=0;c<COLS;c++){
+      for (let r=0;r<ROWS;r++){
+        if (LAYOUT[r][c]===null) continue;
+        const startsDown = (r===0 || LAYOUT[r-1]?.[c]===null);
+        if (startsDown){
+          const cells = wordCellsAt(r,c,'down');
+          const guess = cells.map(({r,c}) => (grid[r][c].letter || '').toUpperCase());
+          const want  = cells.map(({r,c}) => (SOLUTION[r][c]   || '').toUpperCase());
+          if (guess.some(ch => !ch) || guess.join('') !== want.join('')) return;
+        }
+      }
+    }
+    confetti(); toast('✅ Correct! Puzzle solved.');
   }
 
   function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1700); }
@@ -571,55 +681,44 @@
     setTimeout(()=>container.remove(),1200);
   }
 
- function computeLayout(){
-  const rotated = document.documentElement.classList.contains('rotate-90');
+  function computeLayout(){
+    const rotated = document.documentElement.classList.contains('rotate-90');
 
-  const styles = getComputedStyle(document.documentElement);
-  const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
+    const styles = getComputedStyle(document.documentElement);
+    const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
 
-  // Physical viewport (swap when rotated)
-  const rawVW = rotated ? window.innerHeight : window.innerWidth;
-  const rawVH = rotated ? window.innerWidth  : window.innerHeight;
+    const rawVW = rotated ? window.innerHeight : window.innerWidth;
+    const rawVH = rotated ? window.innerWidth  : window.innerHeight;
 
-  // Effective viewport inside gutters
-  const vw = Math.max(0, rawVW - gutter * 2);
-  const vh = Math.max(0, rawVH - gutter * 2);
+    const vw = Math.max(0, rawVW - gutter * 2);
+    const vh = Math.max(0, rawVH - gutter * 2);
 
-  // ❌ REMOVE the old auto-collapse here. We’ll only collapse when user taps “Hide”.
-  // if (vw < 980) drawer.classList.add('collapsed');
+    const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
+    const progressH = 6 + 10;
+    const hintH     = 22;
 
-  const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
-  const progressH = 6 + 10;
-  const hintH     = 22;
+    const drawerVisible = !drawer.classList.contains('collapsed');
+    let drawerW = 0;
+    if (drawerVisible) {
+      drawerW = Math.min(360, Math.floor(vw * 0.35)) + 12;
+    }
+    document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
 
-  // Drawer width: use actual element width when visible; 0 when collapsed
-  const drawerVisible = !drawer.classList.contains('collapsed');
-  let drawerW = 0;
-  if (drawerVisible) {
-    // Max 360px or 35% of usable width
-    drawerW = Math.min(360, Math.floor(vw * 0.35)) + 12; // + inner padding offset
+    const portrait = vh >= vw;
+    const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
+    const kbH = Math.max(120, Math.min(340, (vh - topbarH) * kbFrac));
+    const kbRow = (kbH / 4) - 6;
+
+    const sidePad = 12;
+    const availW = vw - drawerW - sidePad * 2;
+    const availH = vh - topbarH - progressH - kbH - hintH - 60;
+
+    const size = Math.max(300, Math.min(availW, availH));
+    document.documentElement.style.setProperty('--board-size', size + 'px');
+    document.documentElement.style.setProperty('--kb-row', Math.max(40, kbRow) + 'px');
+
+    board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
   }
-
-  // Expose drawer width so .stage adds right padding (prevents overlap)
-  document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
-
-  // Keyboard sizing
-  const portrait = vh >= vw;
-  const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
-  const kbH = Math.max(120, Math.min(340, (vh - topbarH) * kbFrac));
-  const kbRow = (kbH / 4) - 6;
-
-  const sidePad = 12;
-  const availW = vw - drawerW - sidePad * 2;
-  const availH = vh - topbarH - progressH - kbH - hintH - 60;
-
-  const size = Math.max(300, Math.min(availW, availH));
-  document.documentElement.style.setProperty('--board-size', size + 'px');
-  document.documentElement.style.setProperty('--kb-row', Math.max(40, kbRow) + 'px');
-
-  board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
-}
-
 
   window.computeLayout = computeLayout;
   window.addEventListener('resize', computeLayout);
@@ -631,7 +730,7 @@
   if (first>=0) focus={r:fr,c:fc};
   load();
   renderBoard();
-  queueMicrotask(()=>{ app.focus(); computeLayout(); });
+  queueMicrotask(()=>{ app.focus(); computeLayout(); validateBothDirectionsAt(focus.r, focus.c); });
 })();
 </script>
 </body>
