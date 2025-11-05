@@ -1,52 +1,25 @@
-// Bump this when you change cached files
-const VERSION = 'v3';
-
-// Compute base (works for / and /REPO_NAME/)
-const url = new URL(self.registration.scope);
-const BASE = url.pathname; // e.g. "/" or "/NSTW-CROSSWORD/"
-
-const ASSETS = [
-  '',                    // index.html
-  'index.html',
-  'manifest.webmanifest',
-  'assets/POWERPOINT COVER PAGE.jpg',
-  'assets/ZOOM BG.jpg',
-  'assets/Blank Event Banner.jpg'
-].map(p => new URL(p, self.registration.scope).pathname);
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open('crossword-' + VERSION).then(cache => cache.addAll(ASSETS))
-  );
-  self.skipWaiting();
+const VERSION = 'crossword-v5'; // bump this
+const PRECACHE_URLS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './assets/POWERPOINT COVER PAGE.jpg',
+  './assets/ZOOM BG.jpg',
+  './assets/icon-192.png',
+  './assets/icon-512.png'
+];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(PRECACHE_URLS)));
 });
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
+self.addEventListener('activate', e => {
+  e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k.startsWith('crossword-') && k !== 'crossword-' + VERSION) ? caches.delete(k) : null))
+      Promise.all(keys.map(k => (k !== VERSION ? caches.delete(k) : null)))
     )
   );
-  self.clients.claim();
 });
-
-self.addEventListener('fetch', event => {
-  const req = event.request;
-  // Only handle same-origin GET
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
-
-  event.respondWith(
-    caches.match(req).then(cached =>
-      cached ||
-      fetch(req).then(resp => {
-        // Cache successful GETs
-        const copy = resp.clone();
-        caches.open('crossword-' + VERSION).then(c => c.put(req, copy));
-        return resp;
-      }).catch(() => {
-        // Fallback to index for navigation requests (SPA-like)
-        if (req.mode === 'navigate') return caches.match(new URL('index.html', self.registration.scope).pathname);
-      })
-    )
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request))
   );
 });
