@@ -151,7 +151,8 @@
     -webkit-backdrop-filter: none !important;
     box-shadow: 0 14px 34px rgba(0,0,0,.45);
     transition: transform .18s ease, opacity .18s ease;
-    z-index: 10;
+    z-index: 30;
+    pointer-events: auto;
   }
   .clues-drawer.collapsed{ transform: translateX(390px); opacity:0; pointer-events:none; }
   .clues-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -570,45 +571,55 @@
     setTimeout(()=>container.remove(),1200);
   }
 
-  function computeLayout(){
-    const rotated = document.documentElement.classList.contains('rotate-90');
+ function computeLayout(){
+  const rotated = document.documentElement.classList.contains('rotate-90');
 
-    const styles = getComputedStyle(document.documentElement);
-    const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
+  const styles = getComputedStyle(document.documentElement);
+  const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
 
-    const rawVW = rotated ? window.innerHeight : window.innerWidth;
-    const rawVH = rotated ? window.innerWidth  : window.innerHeight;
+  // Physical viewport (swap when rotated)
+  const rawVW = rotated ? window.innerHeight : window.innerWidth;
+  const rawVH = rotated ? window.innerWidth  : window.innerHeight;
 
-    const vw = Math.max(0, rawVW - gutter * 2);
-    const vh = Math.max(0, rawVH - gutter * 2);
+  // Effective viewport inside gutters
+  const vw = Math.max(0, rawVW - gutter * 2);
+  const vh = Math.max(0, rawVH - gutter * 2);
 
-    if (vw < 980) drawer.classList.add('collapsed');
+  // ❌ REMOVE the old auto-collapse here. We’ll only collapse when user taps “Hide”.
+  // if (vw < 980) drawer.classList.add('collapsed');
 
-    const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
-    const progressH = 6 + 10;
-    const hintH     = 22;
+  const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
+  const progressH = 6 + 10;
+  const hintH     = 22;
 
-    const drawerVisible = !drawer.classList.contains('collapsed');
-    const drawerW = drawerVisible ? (Math.min(360, vw * 0.35) + 12) : 0;
-
-    /* NEW: expose drawer width as CSS variable so .stage pads itself */
-    document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
-
-    const portrait = vh >= vw;
-    const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
-    const kbH = Math.max(120, Math.min(340, (vh - topbarH) * kbFrac));
-    const kbRow = (kbH / 4) - 6;
-
-    const sidePad = 12;
-    const availW = vw - drawerW - sidePad * 2;
-    const availH = vh - topbarH - progressH - kbH - hintH - 60;
-
-    const size = Math.max(300, Math.min(availW, availH));
-    document.documentElement.style.setProperty('--board-size', size + 'px');
-    document.documentElement.style.setProperty('--kb-row', Math.max(40, kbRow) + 'px');
-
-    board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+  // Drawer width: use actual element width when visible; 0 when collapsed
+  const drawerVisible = !drawer.classList.contains('collapsed');
+  let drawerW = 0;
+  if (drawerVisible) {
+    // Max 360px or 35% of usable width
+    drawerW = Math.min(360, Math.floor(vw * 0.35)) + 12; // + inner padding offset
   }
+
+  // Expose drawer width so .stage adds right padding (prevents overlap)
+  document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
+
+  // Keyboard sizing
+  const portrait = vh >= vw;
+  const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
+  const kbH = Math.max(120, Math.min(340, (vh - topbarH) * kbFrac));
+  const kbRow = (kbH / 4) - 6;
+
+  const sidePad = 12;
+  const availW = vw - drawerW - sidePad * 2;
+  const availH = vh - topbarH - progressH - kbH - hintH - 60;
+
+  const size = Math.max(300, Math.min(availW, availH));
+  document.documentElement.style.setProperty('--board-size', size + 'px');
+  document.documentElement.style.setProperty('--kb-row', Math.max(40, kbRow) + 'px');
+
+  board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+}
+
 
   window.computeLayout = computeLayout;
   window.addEventListener('resize', computeLayout);
