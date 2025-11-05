@@ -1,14 +1,13 @@
 {
-  "name": "NSTW 2025 Crossword (Portrait)",
+  "name": "Crossword – NSTW 2025",
   "short_name": "Crossword",
-  "start_url": "./",
-  "scope": "./",
-  "display": "fullscreen",
-  "orientation": "portrait",
-  "background_color": "#0b1120",
-  "theme_color": "#0b1120",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#3847a3",
+  "start_url": ".",
+  "scope": ".",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

@@ -1,57 +1,52 @@
-/* service-worker.js */
-const CACHE = 'crossword-nstw-2025-v1';
+// Bump this when you change cached files
+const VERSION = 'v3';
+
+// Compute base (works for / and /REPO_NAME/)
+const url = new URL(self.registration.scope);
+const BASE = url.pathname; // e.g. "/" or "/NSTW-CROSSWORD/"
 
 const ASSETS = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './assets/POWERPOINT COVER PAGE.jpg'
-];
+  '',                    // index.html
+  'index.html',
+  'manifest.webmanifest',
+  'assets/POWERPOINT COVER PAGE.jpg',
+  'assets/ZOOM BG.jpg',
+  'assets/Blank Event Banner.jpg'
+].map(p => new URL(p, self.registration.scope).pathname);
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
+    caches.open('crossword-' + VERSION).then(cache => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k))))
+      Promise.all(keys.map(k => (k.startsWith('crossword-') && k !== 'crossword-' + VERSION) ? caches.delete(k) : null))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const req = event.request;
+  // Only handle same-origin GET
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
-  // HTML navigation -> network first, fallback to cache
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // Same-origin: cache first
-  const url = new URL(req.url);
-  if (url.origin === location.origin) {
-    event.respondWith(
-      caches.match(req).then(cached =>
-        cached || fetch(req).then(resp => {
-          const copy = resp.clone();
-          caches.open(CACHE).then(c => c.put(req, copy));
-          return resp;
-        })
-      )
-    );
-    return;
-  }
-
-  // Cross-origin: just do network (or add your own strategy)
-  event.respondWith(fetch(req));
+  event.respondWith(
+    caches.match(req).then(cached =>
+      cached ||
+      fetch(req).then(resp => {
+        // Cache successful GETs
+        const copy = resp.clone();
+        caches.open('crossword-' + VERSION).then(c => c.put(req, copy));
+        return resp;
+      }).catch(() => {
+        // Fallback to index for navigation requests (SPA-like)
+        if (req.mode === 'navigate') return caches.match(new URL('index.html', self.registration.scope).pathname);
+      })
+    )
+  );
 });

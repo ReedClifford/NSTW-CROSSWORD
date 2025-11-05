@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Crossword – NSTW 2025 (Touch TV + iPhone)</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3847a3">
+
 <style>
 
 
@@ -755,6 +759,19 @@ function computeLayout(){
   renderBoard();
   queueMicrotask(() => { app.focus(); computeLayout(); });
 })();
+
+
+
+ (function () {
+    if (!('serviceWorker' in navigator)) return;
+
+    // Compute base path: "/" for user-site, "/REPO_NAME/" for project-site
+    const parts = location.pathname.split('/').filter(Boolean);
+    const base = (parts.length > 0) ? `/${parts[0]}/` : '/';
+
+    navigator.serviceWorker.register(base + 'serviceworker.js', { scope: base })
+      .catch(console.error);
+  })();
 </script>
 </body>
 </html>
