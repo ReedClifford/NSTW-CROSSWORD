@@ -14,7 +14,7 @@
     --focus-outline: 4px;
     --board-size: 680px;
     --kb-row: 64px;
-
+    --gutter: 12px;            /* safe margin; grows in rotate mode */
     --ink: #0f172a;
     --accent: #5b8cff;
     --ok: #22c55e;
@@ -46,10 +46,11 @@
   }
 
   .app {
-    position: relative;                /* NEW: anchor absolute children (drawer) */
+    position: relative;                 /* anchor absolute children (drawer) */
     height: calc(var(--vh) * 100);
     max-width: 100vw;
-    margin: 0 auto; padding: 10px 12px;
+    margin: 0 auto;
+    padding: var(--gutter);             /* breathing room on all sides */
     user-select: none; outline: none;
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -126,22 +127,37 @@
   .num{ position:absolute; top:4px; left:6px; opacity:.85; font-weight:800; font-size:clamp(10px,3vw,14px); line-height:1; color:#64748b; }
   .letter{ letter-spacing:.5px; }
 
-  /* Drawer now INSIDE .app and absolute so it rotates with the app */
+  /* ===== Drawer: solid panel (NO glass) ===== */
   .clues-drawer{
-    position: absolute; right: 12px; top: 70px; bottom: 12px; width: 360px;
-    background: rgba(255,255,255,.16); color:#fff; border: 1px solid rgba(255,255,255,.28);
-    border-radius: 18px; padding: 12px; overflow: hidden;
-    backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%);
-    box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06);
+    position: absolute;
+    right: var(--gutter);
+    top: calc(58px + var(--gutter));
+    bottom: var(--gutter);
+    width: 360px;
+
+    /* Solid, non-glassy look */
+    background: #0b1220;                    /* opaque dark */
+    border: 1px solid #1f2937;              /* solid border */
+    border-radius: 18px;
+    padding: 12px;
+    overflow: hidden;
+
+    /* Remove frosted glass */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+
+    /* Softer drop shadow only */
+    box-shadow: 0 14px 34px rgba(0,0,0,.45);
+
     transition: transform .18s ease, opacity .18s ease;
   }
   .clues-drawer.collapsed{ transform: translateX(390px); opacity:0; pointer-events:none; }
   .clues-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .clues-head h2{ margin:0; font-size:18px; }
   .clues-body{ position:absolute; inset:56px 10px 10px 10px; overflow:auto; }
-  .clue{ font-size:16px; margin:4px 0; padding:8px 10px; border-radius:10px; line-height:1.35; background:transparent; border:1px solid transparent; color:#e5eaf3; }
+  .clue{ font-size:16px; margin:4px 0; padding:8px 10px; border-radius:10px; line-height:1.35; background:#0f172a; border:1px solid transparent; color:#e5eaf3; }
   .clue small{ opacity:.75; }
-  .clue.active{ background: rgba(7, 33, 92, 0.2); border-color: rgba(91,140,255,.35); }
+  .clue.active{ background:#111b2e; border-color:#3756a8; }
 
   .toast{
     position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom));
@@ -176,7 +192,11 @@
   }
 
   /* Rotate whole UI for landscape-mounted TVs */
-  :root.rotate-90 { --vh: 1vw; }
+  :root.rotate-90 { 
+    --vh: 1vw;
+    --kb-row: 54px;         /* shorter keys when rotated */
+    --gutter: 28px;         /* more breathing room in vertical mode */
+  }
   html.rotate-90, body.rotate-90{
     margin:0; padding:0; width:100vh; height:100vw; overflow:hidden;
   }
@@ -189,7 +209,6 @@
     transform: translate(-50%, -50%) rotate(90deg);
     transform-origin: center center;
   }
-  html.rotate-90 :root{ --kb-row: 54px; }
 </style>
 </head>
 <body>
@@ -230,14 +249,14 @@
     </div>
   </div>
 
-  <!-- Drawer MOVED INSIDE .app so it rotates with the app -->
+  <!-- Drawer inside .app -->
   <aside id="drawer" class="clues-drawer">
     <div class="clues-head">
       <h2>Active clue</h2>
       <button class="btn" id="btnCloseDrawer" style="padding:6px 10px;">Hide</button>
     </div>
     <div class="clues-body">
-      <div id="activeClue" class="clue" style="font-weight:800;border:1px dashed rgba(255,255,255,.28);"></div>
+      <div id="activeClue" class="clue" style="font-weight:800;border:1px dashed rgba(255,255,255,.18);"></div>
       <h3 style="margin:12px 6px 6px;">Across</h3>
       <div id="acrossClues"></div>
       <h3 style="margin:12px 6px 6px;">Down</h3>
@@ -335,7 +354,7 @@
   document.getElementById('btnClues').addEventListener('click', () => drawer.classList.toggle('collapsed'));
   document.getElementById('btnCloseDrawer').addEventListener('click', () => drawer.classList.add('collapsed'));
 
-  /* Rotate toggle: no forced collapse; drawer now rotates with app */
+  /* Rotate toggle */
   document.getElementById('btnRotate').addEventListener('click', () => {
     const root = document.documentElement;
     const body = document.body;
@@ -485,8 +504,7 @@
     if (!cell || cell.block){ activeClueEl.textContent='Tap any cell to begin.'; return; }
     const num = startNumForCurrentWord(focus.r,focus.c,dir);
     const obj = (dir==='across'?CLUES_ACROSS[num]:CLUES_DOWN[num]);
-    const text = obj?obj.clue:'';
-    const len = currentWordCells().length;
+    const text = obj?obj.clue:''; const len = currentWordCells().length;
     activeClueEl.innerHTML = `<strong>${num}.</strong> ${text} <small>(${len})</small>`;
     document.querySelectorAll('.clue').forEach(el=>el.classList.remove('active'));
     const el = document.querySelector(`.clue[data-dir="${dir}"][data-num="${num}"]`);
@@ -545,24 +563,32 @@
 
   function computeLayout(){
     const rotated = document.documentElement.classList.contains('rotate-90');
-    const vw = rotated ? window.innerHeight : window.innerWidth;
-    const vh = rotated ? window.innerWidth  : window.innerHeight;
 
-    // collapse on narrow only; not forced by rotation anymore
+    const styles = getComputedStyle(document.documentElement);
+    const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
+
+    const rawVW = rotated ? window.innerHeight : window.innerWidth;
+    const rawVH = rotated ? window.innerWidth  : window.innerHeight;
+
+    const vw = Math.max(0, rawVW - gutter * 2);
+    const vh = Math.max(0, rawVH - gutter * 2);
+
     if (vw < 980) drawer.classList.add('collapsed');
 
     const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
     const progressH = 6 + 10;
     const hintH     = 22;
+
     const drawerVisible = !drawer.classList.contains('collapsed');
-    const drawerW   = drawerVisible ? (Math.min(360, vw*0.35) + 12) : 0;
+    const drawerW = drawerVisible ? (Math.min(360, vw * 0.35) + 12) : 0;
 
     const portrait = vh >= vw;
-    const kbH = Math.max(140, Math.min(340, (vh - topbarH) * (portrait ? 0.36 : 0.28)));
+    const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
+    const kbH = Math.max(120, Math.min(340, (vh - topbarH) * kbFrac));
     const kbRow = (kbH / 4) - 6;
 
-    const sidePad = 24;
-    const availW = vw - drawerW - sidePad*2;
+    const sidePad = 12;
+    const availW = vw - drawerW - sidePad * 2;
     const availH = vh - topbarH - progressH - kbH - hintH - 60;
 
     const size = Math.max(300, Math.min(availW, availH));
@@ -571,6 +597,7 @@
 
     board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
   }
+
   window.computeLayout = computeLayout;
   window.addEventListener('resize', computeLayout);
   window.addEventListener('orientationchange', computeLayout);
