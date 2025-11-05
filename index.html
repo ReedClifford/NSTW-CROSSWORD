@@ -5,10 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Crossword – NSTW 2025 (Touch TV + iPhone)</title>
 <style>
+
+
+  /* ===== TV 16:9 responsiveness ===== */
+
+
+  /* Slightly bigger UI when the screen is ~16:9 (TVs, projectors) */
+  @media (aspect-ratio: 16/9), (min-width: 1600px) and (max-aspect-ratio: 16/9) {
+    .brand h1 { font-size: clamp(22px, 2.2vw, 40px); }
+    .btn { padding: 10px 16px; }
+    .clues-drawer { width: 420px; }
+  }
+
   :root{
     /* dynamic vh unit for iOS Safari (set by JS) */
     --vh: 1vh;
-
+    --overscan: 0.04; /* 4% */
     --gap: 2px;
     --cell-min: 62px;           /* default desktop/tv */
     --focus-outline: 4px;
@@ -168,7 +180,7 @@
   .clue { font-size: 16px; margin: 4px 0; padding: 8px 10px; border-radius: 10px; line-height:1.35;
           background: transparent; border:1px solid transparent; color:#e5eaf3; }
   .clue small { opacity:.75; }
-  .clue.active { background: rgba(91,140,255,.20); border-color: rgba(91,140,255,.35); }
+  .clue.active { background: rgba(7, 33, 92, 0.2); border-color: rgba(91,140,255,.35); }
 
   /* Toast */
   .toast {
@@ -682,34 +694,54 @@
   }
 
   /* ---------- Layout (TV + iPhone) ---------- */
-  function computeLayout(){
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+function computeLayout(){
+  // If you’re using the rotate wrapper, these helpers already exist in your file.
+  // If not, replace vw()/vh() below with window.innerWidth/innerHeight.
+  const W0 = (typeof vw === 'function') ? vw() : window.innerWidth;
+  const H0 = (typeof vh === 'function') ? vh() : window.innerHeight;
 
-    // Auto-collapse clues on narrow phones
-    if (vw < 980) drawer.classList.add('collapsed');
+  // Overscan-safe bounds for TVs
+  const over = Math.max(0, Math.min(0.08, parseFloat(getComputedStyle(document.documentElement)
+                 .getPropertyValue('--overscan')) || 0.04));
+  const safeW = W0 * (1 - over * 2);
+  const safeH = H0 * (1 - over * 2);
 
-    const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
-    const progressH = 6 + 10;
-    const hintH     = 22;
-    const drawerVisible = !drawer.classList.contains('collapsed');
-    const drawerW   = drawerVisible ? (Math.min(360, vw*0.35) + 12) : 0;
+  // Show drawer by default on large screens; auto-collapse on narrower ones
+  if (safeW < 1100) drawer.classList.add('collapsed');
 
-    // Keyboard height: slightly larger on portrait phones
-    const portrait = vh >= vw;
-    const kbH = Math.max(140, Math.min(340, (vh - topbarH) * (portrait ? 0.36 : 0.28)));
-    const kbRow = (kbH / 4) - 6;
+  // Drawer width when visible
+  const drawerVisible = !drawer.classList.contains('collapsed');
+  const drawerW = drawerVisible ? Math.min(420, safeW * 0.32) : 0;
 
-    const sidePad = 24;
-    const availW = vw - drawerW - sidePad*2;
-    const availH = vh - topbarH - progressH - kbH - hintH - 60;
+  // Top paddings/heights
+  const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
+  const progressH = 16;
+  const hintH     = 22;
 
-    const size = Math.max(300, Math.min(availW, availH));
-    document.documentElement.style.setProperty('--board-size', size + 'px');
-    document.documentElement.style.setProperty('--kb-row',     Math.max(40, kbRow) + 'px');
+  // TV vs handheld tuning
+  const isWide = safeW / safeH >= 1.6;  // ~16:10 / 16:9
+  // Keyboard height—taller on phones, tighter on TVs
+  const kbH = isWide
+    ? Math.max(140, Math.min(300, safeH * 0.26))  // TV/desktop
+    : Math.max(160, Math.min(340, safeH * 0.36)); // phones/tablets
 
-    board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
-  }
+  const kbRow = (kbH / 4) - 6; // 4 kb rows in your layout
+
+  // Compute available space for square board
+  const sidePad = 24;
+  const availW = safeW - drawerW - sidePad * 2;
+  const availH = safeH - topbarH - progressH - kbH - hintH - 60;
+
+  // Cap the board for extremely huge screens so keys don’t look tiny
+  const cap = isWide ? 860 : 820;
+  const size = Math.max(300, Math.min(availW, availH, cap));
+
+  document.documentElement.style.setProperty('--board-size', size + 'px');
+  document.documentElement.style.setProperty('--kb-row', Math.max(40, kbRow) + 'px');
+
+  board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+}
+
 
   window.addEventListener('resize', computeLayout);
   window.addEventListener('orientationchange', computeLayout);
