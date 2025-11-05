@@ -14,7 +14,8 @@
     --focus-outline: 4px;
     --board-size: 680px;
     --kb-row: 64px;
-    --gutter: 12px;            /* safe margin; grows in rotate mode */
+    --gutter: 12px;
+    --drawerW: 0px;            /* NEW: reserved space for the drawer */
     --ink: #0f172a;
     --accent: #5b8cff;
     --ok: #22c55e;
@@ -46,11 +47,11 @@
   }
 
   .app {
-    position: relative;                 /* anchor absolute children (drawer) */
+    position: relative;
     height: calc(var(--vh) * 100);
     max-width: 100vw;
     margin: 0 auto;
-    padding: var(--gutter);             /* breathing room on all sides */
+    padding: var(--gutter);
     user-select: none; outline: none;
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -78,7 +79,14 @@
   .progress { height:6px; width:100%; background:rgba(255,255,255,.18); border-radius:999px; overflow:hidden; }
   .progress > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#38bdf8,#60a5fa); transition:width .25s ease; }
 
-  .stage { display:grid; place-items:center; gap:12px; height: calc(calc(var(--vh) * 100) - 120px); min-height:420px; }
+  /* NEW: reserve horizontal space for the drawer when visible */
+  .stage {
+    display:grid; place-items:center; gap:12px;
+    height: calc(calc(var(--vh) * 100) - 120px); min-height:420px;
+    padding-right: var(--drawerW);          /* <- key line */
+    transition: padding-right .18s ease;    /* smooth when opening/closing */
+  }
+
   .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
 
   .board{
@@ -127,29 +135,23 @@
   .num{ position:absolute; top:4px; left:6px; opacity:.85; font-weight:800; font-size:clamp(10px,3vw,14px); line-height:1; color:#64748b; }
   .letter{ letter-spacing:.5px; }
 
-  /* ===== Drawer: solid panel (NO glass) ===== */
+  /* Drawer: solid panel (not glass) */
   .clues-drawer{
     position: absolute;
     right: var(--gutter);
     top: calc(58px + var(--gutter));
     bottom: var(--gutter);
     width: 360px;
-
-    /* Solid, non-glassy look */
-    background: #0b1220;                    /* opaque dark */
-    border: 1px solid #1f2937;              /* solid border */
+    background: #0b1220;
+    border: 1px solid #1f2937;
     border-radius: 18px;
     padding: 12px;
     overflow: hidden;
-
-    /* Remove frosted glass */
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-
-    /* Softer drop shadow only */
     box-shadow: 0 14px 34px rgba(0,0,0,.45);
-
     transition: transform .18s ease, opacity .18s ease;
+    z-index: 10;
   }
   .clues-drawer.collapsed{ transform: translateX(390px); opacity:0; pointer-events:none; }
   .clues-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -194,8 +196,8 @@
   /* Rotate whole UI for landscape-mounted TVs */
   :root.rotate-90 { 
     --vh: 1vw;
-    --kb-row: 54px;         /* shorter keys when rotated */
-    --gutter: 28px;         /* more breathing room in vertical mode */
+    --kb-row: 54px;
+    --gutter: 28px;
   }
   html.rotate-90, body.rotate-90{
     margin:0; padding:0; width:100vh; height:100vw; overflow:hidden;
@@ -249,7 +251,6 @@
     </div>
   </div>
 
-  <!-- Drawer inside .app -->
   <aside id="drawer" class="clues-drawer">
     <div class="clues-head">
       <h2>Active clue</h2>
@@ -351,8 +352,16 @@
   document.getElementById('btnClear').addEventListener('click', clearWord);
   document.getElementById('btnReset').addEventListener('click', resetPuzzle);
   document.getElementById('btnFS').addEventListener('click', () => { document.documentElement.requestFullscreen?.(); });
-  document.getElementById('btnClues').addEventListener('click', () => drawer.classList.toggle('collapsed'));
-  document.getElementById('btnCloseDrawer').addEventListener('click', () => drawer.classList.add('collapsed'));
+
+  // Toggle drawer and recompute layout  /* NEW */
+  document.getElementById('btnClues').addEventListener('click', () => {
+    drawer.classList.toggle('collapsed');
+    computeLayout();                        // ensure padding updates
+  });
+  document.getElementById('btnCloseDrawer').addEventListener('click', () => {
+    drawer.classList.add('collapsed');
+    computeLayout();
+  });
 
   /* Rotate toggle */
   document.getElementById('btnRotate').addEventListener('click', () => {
@@ -581,6 +590,9 @@
 
     const drawerVisible = !drawer.classList.contains('collapsed');
     const drawerW = drawerVisible ? (Math.min(360, vw * 0.35) + 12) : 0;
+
+    /* NEW: expose drawer width as CSS variable so .stage pads itself */
+    document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
 
     const portrait = vh >= vw;
     const kbFrac = rotated ? (portrait ? 0.30 : 0.26) : (portrait ? 0.36 : 0.28);
