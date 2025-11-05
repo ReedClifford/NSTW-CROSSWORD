@@ -764,13 +764,9 @@ function computeLayout(){
 
  (function () {
     if (!('serviceWorker' in navigator)) return;
-
-    // Compute base path: "/" for user-site, "/REPO_NAME/" for project-site
-    const parts = location.pathname.split('/').filter(Boolean);
-    const base = (parts.length > 0) ? `/${parts[0]}/` : '/';
-
-    navigator.serviceWorker.register(base + 'serviceworker.js', { scope: base })
-      .catch(console.error);
+    const BASE = '/NSTW-CROSSWORD/';
+    navigator.serviceWorker.register(BASE + 'serviceworker.js', { scope: BASE })
+      .catch(err => console.error('SW register failed', err));
   })();
 </script>
 </body>
