@@ -79,24 +79,13 @@
   .progress { height:6px; width:100%; background:rgba(255,255,255,.18); border-radius:999px; overflow:hidden; }
   .progress > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#38bdf8,#60a5fa); transition:width .25s ease; }
 
-  .stage {
-    display:grid; place-items:center; gap:12px;
-    height: calc(calc(var(--vh) * 100) - 120px); min-height:420px;
-    padding-right: var(--drawerW);
-    transition: padding-right .18s ease;
-  }
-
+  .stage { display:grid; place-items:center; gap:12px; height: calc(calc(var(--vh) * 100) - 120px); min-height:420px; padding-right: var(--drawerW); transition: padding-right .18s ease; }
   .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
 
   .board{
-    width: var(--board-size);
-    height: var(--board-size);
-    background: rgba(255,255,255,.06);
-    display:grid; gap:var(--gap);
-    touch-action: manipulation;
-    border-radius:16px;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.35);
-    padding:8px;
+    width: var(--board-size); height: var(--board-size); background: rgba(255,255,255,.06);
+    display:grid; gap:var(--gap); touch-action: manipulation; border-radius:16px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.35); padding:8px;
   }
   .grid{ width:100%; height:100%; display:grid; }
 
@@ -135,22 +124,10 @@
   .letter{ letter-spacing:.5px; }
 
   .clues-drawer{
-    position: absolute;
-    right: var(--gutter);
-    top: calc(58px + var(--gutter));
-    bottom: var(--gutter);
-    width: 360px;
-    background: #0b1220;
-    border: 1px solid #1f2937;
-    border-radius: 18px;
-    padding: 12px;
-    overflow: hidden;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    box-shadow: 0 14px 34px rgba(0,0,0,.45);
-    transition: transform .18s ease, opacity .18s ease;
-    z-index: 30;
-    pointer-events: auto;
+    position: absolute; right: var(--gutter); top: calc(58px + var(--gutter)); bottom: var(--gutter);
+    width: 360px; background: #0b1220; border: 1px solid #1f2937; border-radius: 18px; padding: 12px; overflow: hidden;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: 0 14px 34px rgba(0,0,0,.45);
+    transition: transform .18s ease, opacity .18s ease; z-index: 30; pointer-events: auto;
   }
   .clues-drawer.collapsed{ transform: translateX(390px); opacity:0; pointer-events:none; }
   .clues-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
@@ -162,8 +139,7 @@
 
   .toast{
     position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom));
-    transform: translateX(-50%);
-    background: #0b1220; color:#fff; padding: 12px 18px; border-radius: 12px; font-weight: 700;
+    transform: translateX(-50%); background: #0b1220; color:#fff; padding: 12px 18px; border-radius: 12px; font-weight: 700;
     box-shadow: 0 14px 30px rgba(0,0,0,.45);
   }
 
@@ -207,6 +183,7 @@
       <button class="btn" id="btnToggle">Across</button>
       <button class="btn" id="btnClear">Clear</button>
       <button class="btn" id="btnReset">Reset</button>
+      <button class="btn" id="btnBack">Back to Landing</button>
       <button class="btn primary" id="btnFS">Fullscreen</button>
     </div>
   </div>
@@ -253,7 +230,6 @@
     navigator.serviceWorker.register('serviceworker.js');
   }
 
-  // -- viewport-height unit fix (no rotation behavior) --
   function setVh() {
     const base = window.innerHeight;
     document.documentElement.style.setProperty('--vh', `${base * 0.01}px`);
@@ -262,31 +238,21 @@
   window.addEventListener('resize', setVh);
   window.addEventListener('orientationchange', setVh);
 
-  // ===== RANDOMIZED PUZZLE BUILDER (10 of 30 words) =====
   const ROWS = 7, COLS = 7;
+  const TOTAL_CLUES = 10;
+  const TARGET_ACROSS = 5;
+  const TARGET_DOWN   = TOTAL_CLUES - TARGET_ACROSS;
+  const LANDING_URL   = 'index.html';
 
-  // your original base layout shape
-  const BASE_LAYOUT = [
-    [ null, "",  "",  "",  null, "",  "" ],
-    [ "",   "",  "",  null,"",   "",  "" ],
-    [ "",   "",  "",  "",  "",   "",  "" ],
-    [ "",   null,"",  null,"",   null,"" ],
-    [ "",   "",  "",  "",  "",   "",  "" ],
-    [ null, "",  "",  "",  null, "",  "" ],
-    [ "",   "",  "",  null,"",   "",  "" ],
-  ];
+  const PUZZLE_KEY   = 'crossword-nstw2025-puzzle-v8';
+  const PROGRESS_KEY = 'crossword-nstw2025-progress-v1';
 
-  const MAX_WORDS = 10; // show only 10 words each load
-
-  // 30+ word bank (UPPERCASE, no spaces/hyphens). Add/edit freely.
   const WORD_BANK = [
-    // 2-letter
     {answer:'AI', clue:'Two-letter tech term'},
     {answer:'AR', clue:'Overlay on reality'},
     {answer:'VR', clue:'Immersive display tech'},
     {answer:'IO', clue:'In/Out pair'},
     {answer:'OS', clue:'Phone or PC core'},
-    // 3-letter
     {answer:'APP', clue:'Phone program'},
     {answer:'BOT', clue:'Automated helper'},
     {answer:'LAB', clue:'Research workplace'},
@@ -298,21 +264,17 @@
     {answer:'NET', clue:'Interconnected mesh'},
     {answer:'CAT', clue:'Friendly feline'},
     {answer:'DNA', clue:'Genetic blueprint'},
-    // 4-letter
     {answer:'DATA', clue:'Numbers and facts'},
     {answer:'CODE', clue:'What developers write'},
     {answer:'BYTE', clue:'Eight bits'},
     {answer:'STAR', clue:'Luminous sphere'},
     {answer:'WAVE', clue:'Oscillation'},
-    // 5-letter
     {answer:'LASER', clue:'Amplified light beam'},
     {answer:'ROBOT', clue:'Programmable machine'},
     {answer:'QUARK', clue:'Tiny particle'},
-    // 6-letter
     {answer:'PYTHON', clue:'Popular language'},
     {answer:'SCRIPT', clue:'Program text'},
     {answer:'PLANET', clue:'Orbits a star'},
-    // 7-letter
     {answer:'NETWORK', clue:'Interconnected system'},
     {answer:'SCIENCE', clue:'Systematic study of nature'},
     {answer:'ANALYZE', clue:'Examine in detail'},
@@ -320,103 +282,122 @@
   ];
 
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a; }
-  function groupByLen(bank){
-    const by={}; for(const w of bank){ const L=w.answer.length; (by[L]||(by[L]=[])).push({...w}); }
-    for(const k in by) shuffle(by[k]); return by;
-  }
-  function countByLen(bank){ const m={}; for(const w of bank){ const L=w.answer.length; m[L]=(m[L]||0)+1; } return m; }
+  function byLen(){ const g={}; for(const w of WORD_BANK){ const L=w.answer.length; (g[L]||(g[L]=[])).push({...w}); } for(const k in g) shuffle(g[k]); return g; }
 
-  function slotListFromLayout(layout){
-    const rows=layout.length, cols=layout[0].length;
-    const isCell=(r,c)=> layout[r][c]!==null;
-    const startsAcross=(r,c)=> isCell(r,c) && (c===0 || layout[r][c-1]==null) && (c+1<cols && isCell(r,c+1));
-    const startsDown  =(r,c)=> isCell(r,c) && (r===0 || layout[r-1]?.[c]==null) && (r+1<rows && isCell(r+1,c));
-    const slots=[]; let num=0;
-    for(let r=0;r<rows;r++){
-      for(let c=0;c<cols;c++){
-        if(!isCell(r,c)) continue;
-        const a=startsAcross(r,c), d=startsDown(r,c);
-        if(a||d){
-          num++;
-          if(a){ let l=0, cc=c; while(cc<cols && isCell(r,cc)){ l++; cc++; }
-            slots.push({dir:'across', num, len:l, r, c});
-          }
-          if(d){ let l=0, rr=r; while(rr<rows && isCell(rr,c)){ l++; rr++; }
-            slots.push({dir:'down', num, len:l, r, c});
-          }
-        }
-      }
-    }
-    return slots;
-  }
-
-  function pickSlotsLimited(slots, bankCounts, limit){
-    const picked=[]; const usedByLen={}; const order=shuffle(slots.slice());
-    for(const s of order){
-      if(picked.length>=limit) break;
-      const L=s.len, used=usedByLen[L]||0;
-      if((bankCounts[L]||0)>used){ picked.push(s); usedByLen[L]=used+1; }
-    }
-    return picked;
-  }
-
-  function layoutFromPickedSlots(base, picked){
-    const rows=base.length, cols=base[0].length;
-    const keep = Array.from({length:rows},()=>Array(cols).fill(false));
-    for(const s of picked){
-      if(s.dir==='across'){ for(let i=0;i<s.len;i++) keep[s.r][s.c+i]=true; }
-      else { for(let i=0;i<s.len;i++) keep[s.r+i][s.c]=true; }
-    }
-    return base.map((row,r)=>row.map((v,c)=> keep[r][c] ? "" : null));
-  }
-
-  function fillSolutionAndClues(layout, picked, bank){
-    const rows=layout.length, cols=layout[0].length;
-    const SOL = Array.from({length:rows},()=>Array(cols).fill(null));
-    const ACROSS={}, DOWN={};
-    const byLen = groupByLen(bank);
+  function buildTenSlotPuzzle(){
+    const L = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const S = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const buckets = byLen();
     const used = new Set();
 
-    function take(len){
-      const list = byLen[len]||[];
-      while(list.length){
-        const w = list.pop();
-        if(!used.has(w.answer)){ used.add(w.answer); return w; }
-      }
-      return null;
-    }
+    const acrossRows = [0,2,4,6,3];
+    const downCols   = [0,2,4,6,1];
 
-    for(const s of picked){
-      const w = take(s.len);
-      const ans = w ? w.answer : "X".repeat(s.len);
-      const clue = w ? w.clue : `(add more ${s.len}-letter words)`;
-      if(s.dir==='across'){
-        ACROSS[s.num] = { clue, answer: ans };
-        for(let i=0;i<s.len;i++) SOL[s.r][s.c+i]=ans[i];
-      }else{
-        DOWN[s.num] = { clue, answer: ans };
-        for(let i=0;i<s.len;i++) SOL[s.r+i][s.c]=ans[i];
+    const across=[], down=[];
+    // place across
+    for(const r of acrossRows){
+      const candidates = Object.values(buckets).flat().filter(w=>!used.has(w.answer) && w.answer.length<=COLS);
+      let placed=false;
+      for(const w of shuffle(candidates)){
+        const len=w.answer.length, c0=Math.max(0,Math.floor((COLS-len)/2));
+        let ok=true;
+        for(let i=0;i<len;i++){ const ch=S[r][c0+i]; if(ch && ch!==w.answer[i]){ok=false;break;} }
+        if(!ok) continue;
+        for(let i=0;i<len;i++){ L[r][c0+i]=""; S[r][c0+i]=w.answer[i]; }
+        used.add(w.answer);
+        across.push({dir:'across',r,c:c0,len,answer:w.answer,clue:w.clue});
+        placed=true; break;
+      }
+      if(!placed) return null;
+    }
+    // place down
+    for(const c of downCols){
+      const candidates = Object.values(buckets).flat().filter(w=>!used.has(w.answer) && w.answer.length<=ROWS);
+      let placed=false;
+      for(const w of shuffle(candidates)){
+        const len=w.answer.length, r0=Math.max(0,Math.floor((ROWS-len)/2));
+        let ok=true;
+        for(let i=0;i<len;i++){ const ch=S[r0+i][c]; if(ch && ch!==w.answer[i]){ok=false;break;} }
+        if(!ok) continue;
+        for(let i=0;i<len;i++){ L[r0+i][c]=""; S[r0+i][c]=w.answer[i]; }
+        used.add(w.answer);
+        down.push({dir:'down',r:r0,c,len,answer:w.answer,clue:w.clue});
+        placed=true; break;
+      }
+      if(!placed) return null;
+    }
+    if(across.length!==5 || down.length!==5) return null;
+
+    // numbering
+    const numMap=Array.from({length:ROWS},()=>Array(COLS).fill(''));
+    let num=0;
+    for(let r=0;r<ROWS;r++){
+      for(let c=0;c<COLS;c++){
+        if(L[r][c]===null) continue;
+        const startsAcross=(c===0||L[r][c-1]===null)&&(c+1<COLS&&L[r][c+1]!==null);
+        const startsDown=(r===0||L[r-1]?.[c]===null)&&(r+1<ROWS&&L[r+1]?.[c]!==null);
+        if(startsAcross||startsDown) numMap[r][c]=String(++num);
       }
     }
-    return { SOLUTION: SOL, CLUES_ACROSS: ACROSS, CLUES_DOWN: DOWN };
+    const attachNums = (list, key)=>list.forEach(s=>{ s.num = Number(numMap[s.r][s.c]||0); });
+    attachNums(across); attachNums(down);
+
+    const CLUES_ACROSS={}, CLUES_DOWN={};
+    across.forEach(s=>CLUES_ACROSS[s.num]={clue:s.clue,answer:s.answer,r:s.r,c:s.c});
+    down.forEach(s=>CLUES_DOWN[s.num]={clue:s.clue,answer:s.answer,r:s.r,c:s.c});
+
+    const mapAcross=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const mapDown=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    across.forEach(s=>{for(let i=0;i<s.len;i++) mapAcross[s.r][s.c+i]={...s}});
+    down.forEach(s=>{for(let i=0;i<s.len;i++) mapDown[s.r+i][s.c]={...s}});
+
+    return {LAYOUT:L,SOLUTION:S,numMap,pickedAcross:across,pickedDown:down,mapAcross,mapDown,CLUES_ACROSS,CLUES_DOWN};
   }
 
-  // Build randomized puzzle globals
-  const _allSlots   = slotListFromLayout(BASE_LAYOUT);
-  const _bankCounts = countByLen(WORD_BANK);
-  const _picked     = pickSlotsLimited(_allSlots, _bankCounts, MAX_WORDS);
-
-  if(_picked.length < MAX_WORDS){
-    console.warn(`Only ${_picked.length}/${MAX_WORDS} slots could be filled. Add more words for the needed lengths.`);
+  function buildRandomPuzzle(){
+    for(let tries=0; tries<12; tries++){
+      const puz = buildTenSlotPuzzle();
+      if (puz) return puz;
+    }
+    // minimal fallback to avoid hangs
+    const L=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const S=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const numMap=Array.from({length:ROWS},()=>Array(COLS).fill(''));
+    const chosen = shuffle(WORD_BANK.filter(w=>w.answer.length<=7)).slice(0,10);
+    let num=0; const across=[], down=[];
+    for(let i=0;i<5;i++){
+      const w=chosen[i], len=w.answer.length, r=i, c=Math.max(0,Math.floor((COLS-len)/2));
+      numMap[r][c]=String(++num);
+      for(let j=0;j<len;j++){ L[r][c+j]=''; S[r][c+j]=w.answer[j]; }
+      across.push({dir:'across',r,c,len,num,answer:w.answer,clue:w.clue});
+    }
+    const cols=[6,5,4,3,2];
+    for(let i=5;i<10;i++){
+      const w=chosen[i], len=w.answer.length, c=cols[i-5], r=Math.max(0,Math.floor((ROWS-len)/2));
+      numMap[r][c]=String(++num);
+      for(let j=0;j<len;j++){ L[r+j][c]=''; S[r+j][c]=w.answer[j]; }
+      down.push({dir:'down',r,c,len,num,answer:w.answer,clue:w.clue});
+    }
+    const CLUES_ACROSS={}, CLUES_DOWN={};
+    across.forEach(s=>CLUES_ACROSS[s.num]={clue:s.clue,answer:s.answer,r:s.r,c:s.c});
+    down.forEach(s=>CLUES_DOWN[s.num]={clue:s.clue,answer:s.answer,r:s.r,c:s.c});
+    const mapAcross=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    const mapDown=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    across.forEach(s=>{for(let i=0;i<s.len;i++) mapAcross[s.r][s.c+i]={...s}});
+    down.forEach(s=>{for(let i=0;i<s.len;i++) mapDown[s.r+i][s.c]={...s}});
+    return {LAYOUT:L,SOLUTION:S,numMap,pickedAcross:across,pickedDown:down,mapAcross,mapDown,CLUES_ACROSS,CLUES_DOWN};
   }
 
-  const LAYOUT       = layoutFromPickedSlots(BASE_LAYOUT, _picked);
-  const _filled      = fillSolutionAndClues(LAYOUT, _picked, WORD_BANK);
-  const SOLUTION     = _filled.SOLUTION;
-  const CLUES_ACROSS = _filled.CLUES_ACROSS;
-  const CLUES_DOWN   = _filled.CLUES_DOWN;
+  function savePuzzle(p){ localStorage.setItem(PUZZLE_KEY, JSON.stringify(p)); }
+  function loadPuzzle(){ try{ return JSON.parse(localStorage.getItem(PUZZLE_KEY)) } catch { return null; } }
+  function clearProgress(){ localStorage.removeItem(PROGRESS_KEY); }
+  function saveProgress(o){ localStorage.setItem(PROGRESS_KEY, JSON.stringify(o)); }
+  function loadProgress(){ try{ return JSON.parse(localStorage.getItem(PROGRESS_KEY)) } catch { return null; } }
 
-  // ===== END RANDOMIZED BUILDER =====
+  let PUZZLE = loadPuzzle();
+  if(!PUZZLE){ PUZZLE = buildRandomPuzzle(); savePuzzle(PUZZLE); }
+
+  let { LAYOUT, SOLUTION, CLUES_ACROSS, CLUES_DOWN, pickedAcross: PICKED_ACROSS, pickedDown: PICKED_DOWN } = PUZZLE;
 
   let grid = [];
   let focus = { r:0, c:0 };
@@ -451,17 +432,12 @@
 
   document.getElementById('btnToggle').addEventListener('click', () => { toggleDir(); app.focus(); });
   document.getElementById('btnClear').addEventListener('click', clearWord);
-  document.getElementById('btnReset').addEventListener('click', resetPuzzle);
+  document.getElementById('btnReset').addEventListener('click', resetPuzzleKeepWords);
   document.getElementById('btnFS').addEventListener('click', () => { document.documentElement.requestFullscreen?.(); });
+  document.getElementById('btnBack').addEventListener('click', () => { window.location.href = LANDING_URL; });
 
-  document.getElementById('btnClues').addEventListener('click', () => {
-    drawer.classList.toggle('collapsed');
-    computeLayout();
-  });
-  document.getElementById('btnCloseDrawer').addEventListener('click', () => {
-    drawer.classList.add('collapsed');
-    computeLayout();
-  });
+  document.getElementById('btnClues').addEventListener('click', () => { drawer.classList.toggle('collapsed'); computeLayout(); });
+  document.getElementById('btnCloseDrawer').addEventListener('click', () => { drawer.classList.add('collapsed'); computeLayout(); });
 
   const onKey = (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
@@ -619,6 +595,9 @@
       cell.letter='';
       const el = cellEl(cell.r,cell.c);
       el.querySelector('.letter').textContent='';
+      el.dataset.stateacross = '';
+      el.dataset.statedown = '';
+      applyMergedState(el);
       validateBothDirectionsAt(cell.r, cell.c);
       save(); updateProgress(); return;
     }
@@ -642,28 +621,20 @@
     save(); updateProgress();
   }
 
+  // >>> FIX: render clues ONLY from the 5 picked slots per direction
   function renderClues(){
     acrossCluesEl.innerHTML=''; downCluesEl.innerHTML='';
-    const numbers = grid.flat().filter(c=>c.num && !c.block);
-    numbers.forEach(c=>{
-      const left = (c.c===0 || getCell(c.r,c.c-1).block);
-      if (left){
-        const p=document.createElement('div'); p.className='clue'; p.dataset.num=c.num; p.dataset.dir='across';
-        const meta=CLUES_ACROSS[c.num];
-        p.innerHTML=`<strong>${c.num}.</strong> ${meta?meta.clue:'(Across)'} <small>(${wordCellsAt(c.r,c.c,'across').length})</small>`;
-        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='across'; updateHighlights(); updateActiveClue(); validateWordAt(c.r,c.c,'across'); });
-        acrossCluesEl.appendChild(p);
-      }
+    [...PICKED_ACROSS].sort((a,b)=>a.num-b.num).forEach(s=>{
+      const p=document.createElement('div'); p.className='clue'; p.dataset.num=s.num; p.dataset.dir='across';
+      p.innerHTML=`<strong>${s.num}.</strong> ${CLUES_ACROSS[s.num].clue} <small>(${s.len})</small>`;
+      p.addEventListener('click',()=>{ focus={r:s.r,c:s.c}; dir='across'; updateHighlights(); updateActiveClue(); validateWordAt(s.r,s.c,'across'); });
+      acrossCluesEl.appendChild(p);
     });
-    numbers.forEach(c=>{
-      const top = (c.r===0 || getCell(c.r-1,c.c).block);
-      if (top){
-        const p=document.createElement('div'); p.className='clue'; p.dataset.num=c.num; p.dataset.dir='down';
-        const meta=CLUES_DOWN[c.num];
-        p.innerHTML=`<strong>${c.num}.</strong> ${meta?meta.clue:'(Down)'} <small>(${wordCellsAt(c.r,c.c,'down').length})</small>`;
-        p.addEventListener('click',()=>{ focus={r:c.r,c:c.c}; dir='down'; updateHighlights(); updateActiveClue(); validateWordAt(c.r,c.c,'down'); });
-        downCluesEl.appendChild(p);
-      }
+    [...PICKED_DOWN].sort((a,b)=>a.num-b.num).forEach(s=>{
+      const p=document.createElement('div'); p.className='clue'; p.dataset.num=s.num; p.dataset.dir='down';
+      p.innerHTML=`<strong>${s.num}.</strong> ${CLUES_DOWN[s.num].clue} <small>(${s.len})</small>`;
+      p.addEventListener('click',()=>{ focus={r:s.r,c:s.c}; dir='down'; updateHighlights(); updateActiveClue(); validateWordAt(s.r,s.c,'down'); });
+      downCluesEl.appendChild(p);
     });
   }
 
@@ -673,7 +644,7 @@
     const num = startNumForCurrentWord(focus.r,focus.c,dir);
     const obj = (dir==='across'?CLUES_ACROSS[num]:CLUES_DOWN[num]);
     const text = obj?obj.clue:''; const len = currentWordCells().length;
-    activeClueEl.innerHTML = `<strong>${num}.</strong> ${text} <small>(${len})</small>`;
+    activeClueEl.innerHTML = `<strong>${num||'–'}.</strong> ${text||''} <small>(${len})</small>`;
     document.querySelectorAll('.clue').forEach(el=>el.classList.remove('active'));
     const el = document.querySelector(`.clue[data-dir="${dir}"][data-num="${num}"]`);
     if (el) el.classList.add('active');
@@ -684,21 +655,34 @@
     let rr=r; while (rr>0 && !getCell(rr-1,c).block) rr--; return getCell(rr,c).num;
   }
 
-  const STORAGE_KEY='crossword-nstw2025-v4';
-  function save(){ const letters=grid.map(row=>row.map(c=>c.letter)); localStorage.setItem(STORAGE_KEY, JSON.stringify({letters,focus,dir})); }
+  function save(){ const letters=grid.map(row=>row.map(c=>c.letter)); saveProgress({letters,focus,dir}); }
   function load(){
-    const raw=localStorage.getItem(STORAGE_KEY); if (!raw) return;
+    const p = loadProgress(); if(!p) return;
     try{
-      const {letters,focus:f,dir:d}=JSON.parse(raw);
-      letters?.forEach((row,r)=>row.forEach((ch,c)=>{ if (!getCell(r,c).block){ grid[r][c].letter=ch||''; } }));
-      focus=f||focus; dir=d||dir;
+      p.letters?.forEach((row,r)=>row.forEach((ch,c)=>{ if (!getCell(r,c).block){ grid[r][c].letter=ch||''; } }));
+      focus=p.focus||focus; dir=p.dir||dir;
     }catch{}
   }
 
-  function resetPuzzle(){
-    localStorage.removeItem(STORAGE_KEY);
-    // rebuild a fresh randomized puzzle
-    location.reload();
+  function resetPuzzleKeepWords(){
+    grid.flat().forEach(c=>{
+      if(!c.block){
+        c.letter = '';
+        const el = cellEl(c.r,c.c);
+        if(el){
+          el.querySelector('.letter').textContent='';
+          el.dataset.stateacross = '';
+          el.dataset.statedown = '';
+          el.classList.remove('ok','bad','active','focus');
+        }
+      }
+    });
+    clearProgress();
+    const first=grid.flat().find(c=>!c.block);
+    if (first) focus={r:first.r,c:first.c};
+    dir='across';
+    updateHighlights(); updateActiveClue(); updateProgress();
+    toast('Board cleared. Same words kept.');
   }
 
   function filledCount(){ let n=0; for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (LAYOUT[r][c]!==null && grid[r][c].letter?.trim()) n++; return n; }
@@ -731,6 +715,17 @@
       }
     }
     confetti(); toast('✅ Correct! Puzzle solved.');
+    setTimeout(() => {
+      clearProgress();
+      const newPuzzle = buildRandomPuzzle();
+      savePuzzle(newPuzzle);
+      ({ LAYOUT, SOLUTION, CLUES_ACROSS, CLUES_DOWN, pickedAcross: PICKED_ACROSS, pickedDown: PICKED_DOWN } = newPuzzle);
+      buildGrid();
+      const first=LAYOUT.flat().findIndex(v=>v!==null);
+      const fr = Math.floor(first/COLS), fc = first%COLS;
+      if (first>=0) focus={r:fr,c:fc};
+      renderBoard();
+    }, 900);
   }
 
   function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1700); }
@@ -754,9 +749,7 @@
 
     const drawerVisible = !drawer.classList.contains('collapsed');
     let drawerW = 0;
-    if (drawerVisible) {
-      drawerW = Math.min(360, Math.floor(vw * 0.35)) + 12;
-    }
+    if (drawerVisible) { drawerW = Math.min(360, Math.floor(vw * 0.35)) + 12; }
     document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
 
     const portrait = vh >= vw;
@@ -783,8 +776,9 @@
   const first = LAYOUT.flat().findIndex(v=>v!==null);
   const fr = Math.floor(first/COLS), fc = first%COLS;
   if (first>=0) focus={r:fr,c:fc};
-  load();
   renderBoard();
+  load();
+  updateHighlights(); updateActiveClue(); updateProgress();
   queueMicrotask(()=>{ app.focus(); computeLayout(); validateBothDirectionsAt(focus.r, focus.c); });
 })();
 </script>
