@@ -18,7 +18,7 @@
       linear-gradient(rgba(0,0,0,.20), rgba(0,0,0,.20)),
       url("assets/CROSSWORD%20LANDING%20PAGE.png") center / cover no-repeat;
   }
-  /* Portrait override (use another asset if you have one) */
+  /* Portrait override (swap image here if you have a portrait asset) */
   @media (orientation: portrait){
     body::before{
       background:
@@ -39,11 +39,10 @@
     position: fixed; inset: 0; z-index: 2;
     background: transparent;
     cursor: pointer;
-    /* keep taps snappy on touch TVs/phones */
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Optional: tiny accessibility hint for screen readers only */
+  /* Screen-reader hint */
   .sr-only{
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0,0,1px,1px); white-space: nowrap; border: 0;
@@ -60,26 +59,55 @@
 <script>
   (function () {
     const TARGET = 'crossword.html';
+
     const go = () => { window.location.href = TARGET; };
+
+    async function enterFullscreen() {
+      const el = document.documentElement;
+      const req =
+        el.requestFullscreen ||
+        el.webkitRequestFullscreen ||
+        el.msRequestFullscreen;
+
+      if (!req) return false;
+
+      try {
+        await req.call(el, { navigationUI: "hide" });
+        // Best-effort landscape lock (some TVs/browsers support this)
+        if (screen.orientation && screen.orientation.lock) {
+          try { await screen.orientation.lock('landscape'); } catch {}
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function engage() {
+      // Try to enter fullscreen; navigate regardless of outcome.
+      await enterFullscreen();
+      // small micro-delay helps some TVs settle before navigating
+      setTimeout(go, 50);
+    }
 
     const spot = document.getElementById('hotspot');
 
     // Navigate on any click/tap
     spot.addEventListener('pointerdown', function(e){
       e.preventDefault();
-      go();
+      engage();
     }, { passive: false });
 
-    // Keyboard/remote support (Enter/Space/OK)
+    // Keyboard/remote support (Enter/Space/OK key)
     window.addEventListener('keydown', function(e){
       const k = e.key;
       if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
         e.preventDefault();
-        go();
+        engage();
       }
     }, { capture: true });
 
-    // Make sure focus is somewhere for remotes
+    // Focus the hotspot for remotes
     spot.tabIndex = 0;
     spot.focus();
   })();
