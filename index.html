@@ -18,13 +18,13 @@
       linear-gradient(rgba(0,0,0,.20), rgba(0,0,0,.20)),
       url("assets/CROSSWORD%20LANDING%20PAGE.png") center / cover no-repeat;
   }
-  /* If you have a portrait background, uncomment next block and point to PAGE2 */
+  /* Portrait override (use another asset if you have one) */
   @media (orientation: portrait){
     body::before{
       background:
         linear-gradient(rgba(0,0,0,.20), rgba(0,0,0,.20)),
         url("assets/CROSSWORD%20LANDING%20PAGE.png") center / cover no-repeat;
-        /* e.g. url("assets/CROSSWORD%20LANDING%20PAGE2.png") */
+      /* e.g. url("assets/CROSSWORD%20LANDING%20PAGE2.png") */
     }
   }
 
@@ -34,49 +34,55 @@
     background: radial-gradient(1200px 800px at 50% 40%, rgba(0,0,0,.10), transparent 60%);
   }
 
-  /* Button container pinned lower on the page */
-  .btn-box{
-    position: fixed;
-    left: 50%;
-    top: 72vh;                 /* move up/down by changing this number */
-    transform: translateX(-50%);
-    z-index: 2;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Invisible full-screen hotspot */
+  .hotspot{
+    position: fixed; inset: 0; z-index: 2;
+    background: transparent;
+    cursor: pointer;
+    /* keep taps snappy on touch TVs/phones */
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .btn{
-    appearance:none; cursor:pointer; touch-action:manipulation;
-    border:1px solid rgba(255,255,255,.28);
-    background:rgba(147,197,253,.28);
-    color:#fff;
-    font:800 18px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-    padding:14px 22px;
-    border-radius:14px;
-    box-shadow:0 10px 24px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.08);
-    transition:transform .08s ease, background .15s ease, border-color .15s ease;
-    backdrop-filter: blur(4px) saturate(120%);
-    -webkit-backdrop-filter: blur(4px) saturate(120%);
-  }
-  .btn:active{ transform: translateY(1px) scale(.99); }
-
-  @media (max-width:520px){
-    .btn{ width: 84vw; max-width: 420px; }
+  /* Optional: tiny accessibility hint for screen readers only */
+  .sr-only{
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,1px,1px); white-space: nowrap; border: 0;
   }
 </style>
 </head>
 <body>
   <div class="vignette" aria-hidden="true"></div>
 
-  <div class="btn-box">
-    <button class="btn" id="go">Go to Crossword</button>
-  </div>
+  <!-- Full-page click/tap area -->
+  <div id="hotspot" class="hotspot" role="button" aria-label="Open crossword"></div>
+  <span class="sr-only" id="hint">Press Enter or Space to open the crossword.</span>
 
 <script>
-  document.getElementById('go').addEventListener('click', () => {
-    // change if your crossword file is named differently
-    window.location.href = 'crossword.html';
-  });
+  (function () {
+    const TARGET = 'crossword.html';
+    const go = () => { window.location.href = TARGET; };
+
+    const spot = document.getElementById('hotspot');
+
+    // Navigate on any click/tap
+    spot.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      go();
+    }, { passive: false });
+
+    // Keyboard/remote support (Enter/Space/OK)
+    window.addEventListener('keydown', function(e){
+      const k = e.key;
+      if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
+        e.preventDefault();
+        go();
+      }
+    }, { capture: true });
+
+    // Make sure focus is somewhere for remotes
+    spot.tabIndex = 0;
+    spot.focus();
+  })();
 </script>
 </body>
 </html>
