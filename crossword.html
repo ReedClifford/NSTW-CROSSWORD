@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<title>Crossword – NSTW 2025 (Touch TV + iPhone)</title>
+<title>Crossword – NSTW 2025</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#3446b8">
 <style>
@@ -12,10 +12,9 @@
     --gap: 2px;
     --cell-min: 50px;
     --focus-outline: 4px;
-    --board-size: 720px;
-    /* Thicker keyboard by default */
+    --board-size: 720px;   /* computed in JS */
     --kb-row: 72px;
-    --gutter: 12px;
+    --gutter: clamp(6px, 2.2vw, 12px);
     --drawerW: 0px;
     --ink: #0f172a;
     --accent: #5b8cff;
@@ -36,7 +35,7 @@
       radial-gradient(1100px 700px at 80% 20%, rgba(0,0,0,.25), transparent 60%),
       linear-gradient(rgba(0,0,0,0.20), rgba(0,0,0,0.20)),
       url("assets/Background-33.jpg");
-    background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;
+    background-size: cover; background-position: center; background-repeat: no-repeat;
   }
   .app{ position:relative; height:calc(var(--vh) * 100); max-width:100vw; margin:0 auto; padding:var(--gutter); user-select:none; outline:none; display:flex; flex-direction:column; gap:8px; }
   .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
@@ -59,13 +58,13 @@
   .progress{ height:6px; width:100%; background:rgba(255,255,255,.18); border-radius:999px; overflow:hidden; }
   .progress > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#38bdf8,#60a5fa); transition:width .25s ease; }
 
-  .stage{ display:grid; place-items:center; gap:10px; padding-right:var(--drawerW); transition: padding-right .18s ease; }
+  .stage{ position:relative; display:grid; place-items:center; gap:10px; padding-right:var(--drawerW); transition: padding-right .18s ease; }
   .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
 
-  /* Board fills width, stays square */
   .board{
-    width: clamp(320px, calc(100vw - 2*var(--gutter) - var(--drawerW)), 860px);
-    max-width: unset;
+    position: relative;            /* <-- add this */
+
+    width: var(--board-size);
     aspect-ratio: 1 / 1;
     height: auto;
     background:rgba(255,255,255,.06);
@@ -76,12 +75,11 @@
     padding:6px;
   }
   .board, .clue-ribbon, .kb-wrap{
-    width: clamp(320px, calc(100vw - 2*var(--gutter) - var(--drawerW)), 860px);
+    width: var(--board-size);
     margin-left:auto; margin-right:auto;
   }
   .grid{ width:100%; height:100%; display:grid; }
 
-  /* Bigger, multi-line clue ribbon */
   .clue-ribbon{
     display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center;
     margin:6px auto 8px; padding:10px; border-radius:14px;
@@ -96,9 +94,7 @@
     background:#0f172a; border:1px dashed rgba(255,255,255,.22);
     font-size: clamp(14px, 2.2vw, 18px);
     line-height:1.3;
-    white-space:normal;           /* allow wrapping */
-    overflow-wrap:anywhere;       /* long text breaks nicely */
-    text-align:left;
+    white-space:normal; overflow-wrap:anywhere; text-align:left;
   }
   .pill-btn, .pill-secondary{
     font:inherit; font-weight:900; padding:8px 12px; border-radius:12px; cursor:pointer;
@@ -114,7 +110,6 @@
   .kb-row.row3   { grid-template-columns: repeat(7, 1fr); }
   .kb-row.actions{ grid-template-columns: 1.4fr 2.2fr 1.6fr; }
 
-  /* CHUNKIER keys */
   .keyboard button{
     border:2px solid rgba(255,255,255,.28);
     border-radius:14px;
@@ -122,10 +117,7 @@
     color:#fff;
     font-size:clamp(17px,2.2vw,26px);
     font-weight:800; letter-spacing:.6px;
-    box-shadow:
-      0 10px 22px rgba(0,0,0,.28),
-      inset 0 0 0 1px rgba(255,255,255,.08),
-      inset 0 -4px 10px rgba(0,0,0,.18);  /* depth */
+    box-shadow: 0 10px 22px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.08), inset 0 -4px 10px rgba(0,0,0,.18);
     backdrop-filter: blur(8px) saturate(130%); -webkit-backdrop-filter: blur(8px) saturate(130%);
     transition: transform .08s ease, background .12s ease;
   }
@@ -159,13 +151,51 @@
   .clue small{ opacity:.75; }
   .clue.active{ background:#111b2e; border-color:#3756a8; }
   .toast{ position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:#0b1220; color:#fff; padding:12px 18px; border-radius:12px; font-weight:700; box-shadow:0 14px 30px rgba(0,0,0,.45); }
+#fx{
+  position:fixed; inset:0; z-index:9999; pointer-events:none;
+}
 
-  /* Ultra-compact for very tall portrait */
-  @media (max-width: 760px) and (min-height: 1100px) {
-    .brand small{ display:none; }
-    :root{ --gap: 2px; }
-    .board, .kb-wrap, .clue-ribbon{ width:min(98vw, var(--board-size)); }
+
+/* Bigger topbar buttons */
+.topbar .buttons { gap: 10px; }
+.topbar .btn{
+  padding: 10px 16px;          /* was 6px 10px */
+  min-height: 44px;            /* nicer touch target */
+  font-size: clamp(14px, 1.5vw, 18px);
+  border-radius: 12px;         /* slightly rounder */
+}
+
+/* keep the badge dot proportional */
+.topbar .btn .badge-dot{ width: 9px; height: 9px; }
+
+  /* Ultra-compact for tall portrait (≤740px width) */
+  @media (max-width: 740px) and (min-height: 1100px) {
+    :root{ --gutter: 2px; }        /* almost no side padding */
+    .board{ padding:4px; }         /* thinner frame */
+    .clue-ribbon{ padding:6px 8px; margin:4px auto 6px; }
+    .clue-ribbon .pill{ padding:8px 10px; min-height:42px; }
+    .keyboard{ gap:6px; }
+    .kb-row{ gap:6px; }
+    .hint{ display:none; }         /* reclaim some vertical space */
+    .topbar .btn{
+    padding: 11px 18px;
+    min-height: 46px;
+    font-size: clamp(15px, 2.4vw, 20px);
   }
+  }
+
+  /* make the whole header/ribbon/keyboard slimmer on tall phones */
+  @media (max-width: 720px) and (min-height: 1100px) {
+    :root{ --gutter: 4px; }          /* was 8–12px */
+    .clue-ribbon{ padding:6px 8px; margin:4px auto 6px; }
+    .clue-ribbon .pill{ padding:8px 10px; min-height:42px; }
+    .keyboard{ gap:6px; }
+    .kb-row{ gap:6px; }
+    .board{ padding:4px; }           /* trim board padding too */
+    .hint{ display:none; }           /* don’t reserve height */
+  }
+
+
 
   @media (max-width:430px){ :root{--cell-min:40px} .btn{padding:7px 10px} .kb-row{grid-auto-rows:minmax(50px,var(--kb-row))} .clues-drawer{width:320px} }
   @media (max-width:414px){ :root{--cell-min:38px} .brand h1{font-size:20px} .kb-row{grid-auto-rows:minmax(48px,var(--kb-row))} .clues-drawer{width:300px} }
@@ -178,7 +208,7 @@
   <div class="topbar">
     <div class="brand">
       <h1>Crossword</h1>
-      <small>NSTW 2025 • Touch TV</small>
+      <small>NSTW 2025 </small>
     </div>
     <div class="buttons">
       <a href="index.html"><button class="btn" id="btnReturn">Return</button></a>
@@ -193,10 +223,9 @@
   <div class="progress"><i id="progressFill"></i></div>
 
   <div class="stage">
-    <div class="board-wrap">
+    <div class="board-wrap" id="boardWrap">
       <div class="board"><div class="grid" id="board" aria-label="Crossword board"></div></div>
 
-      <!-- Bigger clue ribbon -->
       <div class="clue-ribbon" id="clueRibbon" aria-live="polite">
         <button class="pill-btn" id="cluePrev" title="Previous clue">‹</button>
         <div class="pill" id="clueText">Tap a cell to begin.</div>
@@ -214,9 +243,9 @@
       </div>
       <div class="hint">Tip: Tap a cell to select; tap again to toggle Across/Down. Arrow keys & D-pads work too.</div>
     </div>
+    <div class="norm-spacer" id="normSpacer"></div>
   </div>
 
-  <!-- Drawer -->
   <aside id="drawer" class="clues-drawer collapsed">
     <div class="clues-head">
       <h2 id="setTitle">Active clue</h2>
@@ -231,6 +260,7 @@
     </div>
   </aside>
 </div>
+<canvas id="fx" aria-hidden="true"></canvas>
 
 <script>
 (() => {
@@ -238,11 +268,13 @@
 
   const RETURN_URL = 'index.html';
 
+  // use visual viewport height when available to counter mobile URL bars
   function setVh(){
-    const base = window.innerHeight;
+    const base = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     document.documentElement.style.setProperty('--vh', `${base*0.01}px`);
   }
   setVh(); addEventListener('resize',setVh); addEventListener('orientationchange',setVh);
+  if (window.visualViewport){ window.visualViewport.addEventListener('resize', setVh); }
 
   /* ------------ STRICT grid builder ------------ */
   function makeGridSet(rows, cols, placements){
@@ -320,10 +352,10 @@
     ]}
   ];
 
-  /* ------------ engine state ------------ */
   const STORAGE_KEY = 'crossword-nstw2025-v7-14x14';
   const CURRENT_SET_KEY = `${STORAGE_KEY}::currentSet`;
   const ROWS = 14, COLS = 14;
+
   let grid = [];
   let focus = { r:0, c:0 };
   let dir = 'across';
@@ -338,13 +370,11 @@
   const drawer = document.getElementById('drawer');
   const setTitle = document.getElementById('setTitle');
 
-  // Ribbon refs
   const clueTextEl = document.getElementById('clueText');
   const cluePrev   = document.getElementById('cluePrev');
   const clueNext   = document.getElementById('clueNext');
   const clueOpen   = document.getElementById('clueOpen');
 
-  // Keyboard refs
   const kbRow1    = document.getElementById('kbRow1');
   const kbRow2    = document.getElementById('kbRow2');
   const kbRow3    = document.getElementById('kbRow3');
@@ -356,7 +386,6 @@
     b.addEventListener('pointerdown', e => { e.preventDefault(); handler(); if (navigator.vibrate) navigator.vibrate(8); }, { passive: false });
     return b;
   }
-
   "QWERTYUIOP".split('').forEach(k => kbRow1.appendChild(makeKey(k, () => typeKey(k))));
   "ASDFGHJKL".split('').forEach(k => kbRow2.appendChild(makeKey(k, () => typeKey(k))));
   "ZXCVBNM".split('').forEach(k => kbRow3.appendChild(makeKey(k, () => typeKey(k))));
@@ -398,7 +427,6 @@
   if (!window.__CROSSWORD_KEYS_BOUND__){ addEventListener('keydown', onKey, {capture:true}); window.__CROSSWORD_KEYS_BOUND__=true; }
   addEventListener('pointerdown', (ev)=>{ const tag=(ev.target.tagName||'').toLowerCase(); if (!['input','textarea','select'].includes(tag)) app?.focus?.(); }, {passive:true});
 
-  /* ------------ load a set ------------ */
   function loadSet(index){
     currentSetIndex = index;
     localStorage.setItem(CURRENT_SET_KEY, String(index));
@@ -459,7 +487,7 @@
   }
 
   function getCell(r,c){ return grid[r]?.[c]; }
-  function cellEl(r,c){ return board.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+  function cellEl(r,c){ return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
 
   function onCellTap(cell){
     if (cell.block) return;
@@ -484,7 +512,7 @@
   function currentWordCells(){ return wordCellsAt(focus.r,focus.c,dir); }
 
   function updateHighlights(){
-    board.querySelectorAll('.cell').forEach(el=>el.classList.remove('active','focus'));
+    document.querySelectorAll('.cell').forEach(el=>el.classList.remove('active','focus'));
     currentWordCells().forEach(c=>{ const el=cellEl(c.r,c.c); if (el) el.classList.add('active'); });
     const f=cellEl(focus.r,focus.c); if (f && !getCell(focus.r,focus.c).block) f.classList.add('focus');
     document.getElementById('btnToggle').textContent=(dir==='across')?'Across':'Down';
@@ -557,16 +585,20 @@
     updateHighlights();
   }
   function toggleDir(){ dir=(dir==='across')?'down':'across'; updateHighlights(); updateActiveClue(); validateBothDirectionsAt(focus.r,focus.c); }
-  function clearWord(){
-    currentWordCells().forEach(c=>{
-      c.letter='';
-      const el=cellEl(c.r,c.c);
-      el.querySelector('.letter').textContent='';
-      el.dataset.stateacross=''; el.dataset.statedown='';
-      el.classList.remove('ok','bad');
-    });
-    validateBothDirectionsAt(focus.r,focus.c); saveLetters(); updateProgress();
-  }
+function clearWord(){
+  const cells = currentWordCells();
+  cells.forEach(c => {
+    c.letter = '';
+    const el = cellEl(c.r, c.c);   // <- fix c.c (not c.r twice)
+    if (!el) return;
+    el.querySelector('.letter').textContent = '';
+    el.dataset.stateacross = '';
+    el.dataset.statedown   = '';
+    el.classList.remove('ok','bad');
+  });
+  validateBothDirectionsAt(focus.r,focus.c);
+  saveLetters(); updateProgress();
+}
 
   function renderClues(){
     acrossCluesEl.innerHTML=''; downCluesEl.innerHTML='';
@@ -608,8 +640,7 @@
   }
   function jumpClue(delta){
     const sc = startCellFor(focus.r, focus.c, dir);
-    theCurrent = grid[sc.r][sc.c].num || 1;
-    const currentNum = theCurrent;
+    const currentNum = grid[sc.r][sc.c].num || 1;
     const list = allStarts(dir);
     const idx  = Math.max(0, list.findIndex(s=>s.num==currentNum));
     const next = list[(idx + delta + list.length) % list.length] || list[0];
@@ -678,43 +709,46 @@
     localStorage.removeItem(storageKeyForSet());
     updateProgress();
   }
-
-
-  function confetti({
-  bursts = 2,          // 2–3 looks great, but 2 is lighter
-  perBurst = 120,      // pieces per burst
-  duration = 1600,     // ms; each piece animates for this long
-  emojiChance = 0.08,  // 8% emojis; set 0 for none
+// ==== Lightweight CSS/DOM Confetti (Promise-based) ====
+// ==== Lightweight CSS/DOM Confetti (scoped to board; Promise-based) ====
+function runConfetti({
+  target = document.querySelector('.board'),  // where to render
+  bursts = 2,
+  perBurst = 120,
+  duration = 1600,
+  emojiChance = 0.08,
+  burstGap = 140,
 } = {}) {
-  // Respect reduced motion
-  const rmp = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (rmp.matches) return;
+  if (!target) return Promise.resolve();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
 
-  // Adaptive counts: scale down on huge screens or high DPR
+  const rect = target.getBoundingClientRect();
+  const W = Math.floor(rect.width);
+  const H = Math.floor(rect.height);
+
+  // Adaptive counts: scale to board size + DPR
   const dpr = Math.min(1.5, window.devicePixelRatio || 1);
-  const area = innerWidth * innerHeight;
-  const scale = Math.min(1, (area / (1280*720)) * (1 / dpr));
+  const area = W * H;
+  const scale = Math.min(1, (area / (720*720)) * (1 / dpr)); // 720x720 ≈ reference
   const totalPerBurst = Math.max(60, Math.floor(perBurst * scale));
 
-  // Container overlay
+  // Container overlay INSIDE the board
   const wrap = document.createElement('div');
   wrap.className = 'confetti-wrap';
   wrap.style.cssText = `
-    position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden;
+    position:absolute; inset:0; pointer-events:none; z-index:50; overflow:hidden;
   `;
-  document.body.appendChild(wrap);
+  target.appendChild(wrap);
 
   const colors = ['#22d3ee','#38bdf8','#60a5fa','#34d399','#fbbf24','#f472b6','#ef4444','#22c55e','#a78bfa','#f59e0b'];
   const emojis = ['🎉','🎊','✨','🌟','🎈','💫'];
 
   const sources = [
-    { x: 0.15, angleDeg: -90 },
-    { x: 0.50, angleDeg: -90 },
-    { x: 0.85, angleDeg: -90 },
+    { x: 0.15 },
+    { x: 0.50 },
+    { x: 0.85 },
   ];
 
-  // Build pieces for each burst using DOM + CSS keyframes
-  const burstGap = 140; // ms between bursts
   for (let b = 0; b < bursts; b++) {
     setTimeout(() => {
       const src = sources[b % sources.length];
@@ -722,19 +756,21 @@
         const piece = document.createElement('i');
         const isEmoji = Math.random() < emojiChance;
 
-        // Randomize geometry via CSS variables (GPU transforms only)
-        const startX = (src.x * innerWidth) + (Math.random()*120 - 60); // slight horizontal spread
-        const startY = innerHeight * 0.82 + (Math.random()*40 - 20);
-        const driftX = (Math.random() * 340 - 170);   // side sway
-        const rise = -(Math.random()*220 + 140);      // upward pop before falling
-        const rot = Math.random() * 360;
-        const delay = Math.random() * 120;            // small inner-stagger
+        // Start positions & motion in BOARD coordinates
+        const startX = (src.x * W) + (Math.random()*120 - 60);
+        const startY = H * 0.82 + (Math.random()*40 - 20);
+        const driftX = (Math.random() * 0.48 - 0.24) * W;      // side sway ~ ±24% board width
+        const rise   = -(Math.random()*0.22 + 0.14) * H;       // upward pop relative to board height
+        const fall   = 0.28 * H;                               // final fall distance inside board
+        const rot    = Math.random() * 360;
+        const delay  = Math.random() * 120;
         const scaleP = isEmoji ? (Math.random()*0.7 + 0.9) : (Math.random()*0.7 + 0.6);
 
         piece.style.setProperty('--sx', `${startX}px`);
         piece.style.setProperty('--sy', `${startY}px`);
         piece.style.setProperty('--dx', `${driftX}px`);
         piece.style.setProperty('--rise', `${rise}px`);
+        piece.style.setProperty('--fall', `${fall}px`);
         piece.style.setProperty('--rot', `${rot}deg`);
         piece.style.setProperty('--scale', scaleP);
         piece.style.setProperty('--t', `${duration}ms`);
@@ -745,21 +781,15 @@
           piece.className = 'confetti emoji';
         } else {
           piece.className = 'confetti rect';
-          const c = colors[(Math.random()*colors.length)|0];
-          piece.style.background = `linear-gradient(135deg, ${c}, #fff)`;
+          piece.style.background = `linear-gradient(135deg, ${colors[(Math.random()*colors.length)|0]}, #fff)`;
         }
-
         wrap.appendChild(piece);
       }
     }, b * burstGap);
   }
 
-  // Cleanup: remove after longest animation
-  const totalTime = bursts * burstGap + duration + 600;
-  setTimeout(() => wrap.remove(), totalTime);
-
-  // Inject CSS once
-  const SID = 'confetti-css-lite';
+  // Inject (or update) CSS once
+  const SID = 'confetti-css-lite-board';
   if (!document.getElementById(SID)) {
     const css = document.createElement('style');
     css.id = SID;
@@ -777,14 +807,15 @@
         box-shadow:0 0 0 1px rgba(255,255,255,.45) inset;
       }
       .confetti-wrap .confetti.emoji{
-        font-size:28px; line-height:1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
+        font-size:28px; line-height:1;
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
         animation: confettiFall var(--t) cubic-bezier(.2,.6,.2,1) var(--delay) forwards,
                    confettiBob var(--t) ease-in-out var(--delay) forwards;
       }
       @keyframes confettiFall{
         0%   { transform: translate3d(0,0,0) rotate(var(--rot)) scale(var(--scale)); opacity:1; }
         45%  { transform: translate3d(calc(var(--dx)*0.5), var(--rise), 0) rotate(calc(var(--rot) + 90deg)) scale(var(--scale)); }
-        100% { transform: translate3d(var(--dx), 28vh, 0) rotate(calc(var(--rot) + 240deg)) scale(var(--scale)); opacity:0; }
+        100% { transform: translate3d(var(--dx), var(--fall), 0) rotate(calc(var(--rot) + 240deg)) scale(var(--scale)); opacity:0; }
       }
       @keyframes confettiSpin{
         0% { filter:brightness(1); }
@@ -793,85 +824,265 @@
       }
       @keyframes confettiBob{
         0% { transform: translate3d(0,0,0) rotate(0deg) scale(var(--scale)); }
-        100% { transform: translate3d(var(--dx), 28vh, 0) rotate(360deg) scale(var(--scale)); }
+        100% { transform: translate3d(var(--dx), var(--fall), 0) rotate(360deg) scale(var(--scale)); }
       }
     `;
     document.head.appendChild(css);
   }
+
+  const totalTime = bursts * burstGap + duration + 600;
+  return new Promise(resolve => {
+    setTimeout(() => { wrap.remove(); resolve(); }, totalTime);
+  });
 }
 
 
-  function finalCheckIfSolved(){
-    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
-      if (window.LAYOUT[r][c]===null) continue;
-      const startA=(c===0||window.LAYOUT[r][c-1]===null);
-      if (startA){
-        const cells=wordCellsAt(r,c,'across');
-        const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
-        const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
-        if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
-      }
-    }
-    for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++){
-      if (window.LAYOUT[r][c]===null) continue;
-      const startD=(r===0||window.LAYOUT[r-1]?.[c]===null);
-      if (startD){
-        const cells=wordCellsAt(r,c,'down');
-        const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
-        const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
-        if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
-      }
-    }
+const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+let __SOLVED_LOCK__ = false;
 
-    confetti(); toast('✅ Correct! Loading another set…');
-    clearAllLetters();
+async function finalCheckIfSolved(){
+  if (__SOLVED_LOCK__) return;
 
-    setTimeout(() => {
-      const next = randomOtherIndex(currentSetIndex, SETS.length);
-      localStorage.setItem(CURRENT_SET_KEY, String(next));
-      loadSet(next);
-    }, 900);
+  // verify across
+  for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+    if (window.LAYOUT[r][c]===null) continue;
+    const startA=(c===0||window.LAYOUT[r][c-1]===null);
+    if (startA){
+      const cells=wordCellsAt(r,c,'across');
+      const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
+      const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
+      if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
+    }
   }
+  // verify down
+  for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++){
+    if (window.LAYOUT[r][c]===null) continue;
+    const startD=(r===0||window.LAYOUT[r-1]?.[c]===null);
+    if (startD){
+      const cells=wordCellsAt(r,c,'down');
+      const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
+      const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
+      if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
+    }
+  }
+
+  __SOLVED_LOCK__ = true;
+  toast('✅ Correct!');
+
+await runConfetti({
+  target: document.querySelector('.board'), // <— important
+  bursts: 3,
+  perBurst: 120,
+  duration: 1600,
+  emojiChance: 0.06
+});
+await sleep(500); // 1s after confetti finishes
+
+
+  clearAllLetters();
+  const next = randomOtherIndex(currentSetIndex, SETS.length);
+  localStorage.setItem(CURRENT_SET_KEY, String(next));
+  loadSet(next);
+
+  __SOLVED_LOCK__ = false;
+}
+
+
 
   function randomOtherIndex(cur,n){ const opts=[...Array(n).keys()].filter(i=>i!==cur); return opts[Math.floor(Math.random()*opts.length)] || cur; }
   function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1700); }
+/* ---------- Confetti (no deps) ---------- */
+/* ---------- Confetti (no deps) ---------- */
+/* ---------- Grand Confetti FX (no deps) ---------- */
+/* ===== FX v2: Grand Confetti (bursts + streamers + sparkles) ===== */
+/* ===== FX v2: Grand Confetti (bursts + streamers + sparkles) ===== */
+const FX = (() => {
+  const cvs = document.getElementById('fx');
+  const ctx = cvs.getContext('2d', { alpha:true });
+  let W=0,H=0, running=false, parts=[];
 
-  /* ------------ responsive layout ------------ */
-  function computeLayout(){
-    const styles=getComputedStyle(document.documentElement);
-    const gutter=parseInt(styles.getPropertyValue('--gutter'))||0;
+  const PAL = ['#60a5fa','#38bdf8','#22d3ee','#a78bfa','#f472b6','#34d399','#facc15'];
+  const rand = (a,b)=>a+Math.random()*(b-a);
+  const PI = Math.PI;
 
-    const vw=Math.max(0, innerWidth - gutter*2);
-    const vh=Math.max(0, innerHeight - gutter*2);
+  function resize(){
+    const dpr = Math.max(1, devicePixelRatio||1);
+    W = cvs.width  = Math.floor(innerWidth  * dpr);
+    H = cvs.height = Math.floor(innerHeight * dpr);
+    cvs.style.width  = innerWidth  + 'px';
+    cvs.style.height = innerHeight + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize(); addEventListener('resize',resize);
+  if (visualViewport) visualViewport.addEventListener('resize',resize);
 
-    const topbarH=document.querySelector('.topbar')?.offsetHeight||0;
-    const ribbonH=document.getElementById('clueRibbon')?.offsetHeight||0;
-    const progressH=10, hintH=18;
+  function push(p){ parts.push(p); }
 
-    const drawerVisible=!drawer.classList.contains('collapsed');
-    let drawerW=0; if (drawerVisible) drawerW=Math.min(320, Math.floor(vw*0.35)) + 10;
-    document.documentElement.style.setProperty('--drawerW', drawerW+'px');
-
-    const portrait = vh >= vw;
-
-    /* Taller keyboard to make keys chunky; still capped so board fits */
-    let kbFrac = portrait ? 0.24 : 0.26;
-    if (portrait && vh > 1100 && vw <= 760) kbFrac = 0.22;
-    const kbH = Math.max(140, Math.min(260, Math.floor((vh-topbarH)*kbFrac)));
-    const kbRow = Math.max(50, Math.min(74, Math.floor(kbH/4) - 6));
-
-    const sidePad=10;
-    const availW=vw-drawerW-sidePad*2;
-
-    const verticalUsed = topbarH + progressH + ribbonH + kbH + hintH + 28;
-    const availH = Math.max(260, vh - verticalUsed);
-
-    const size = Math.max(320, Math.min(availW, availH, 860));
-    document.documentElement.style.setProperty('--board-size', size+'px');
-    document.documentElement.style.setProperty('--kb-row', kbRow+'px');
+  // Rect piece with subtle gradient + rotation
+  function confetti(x,y,vx,vy,life=2600){
+    const w = rand(6,12), h = rand(10,18);
+    const col = PAL[(Math.random()*PAL.length)|0];
+    const rot = rand(0,PI*2), vr = rand(-0.4,0.4);
+    const drag = rand(0.994,0.998), g = rand(0.22,0.32);
+    push({type:'rect',x,y,vx,vy,w,h,col,rot,vr,life,t0:performance.now(),drag,g, sway:rand(0.002,0.006), glow:true});
   }
 
-  /* ------------ boot ------------ */
+  // Circle sparkle that fades quickly
+  function sparkle(x,y,vx,vy,life=1100){
+    push({type:'dot',x,y,vx,vy,r:rand(1.5,3.2),col:'#fff',life,t0:performance.now(),drag:0.993,g:0.18,glow:true});
+  }
+
+  // Ribbon/streamer polyline
+  function streamer(x,y,ang,power,life=2200){
+    const vx = Math.cos(ang)*power, vy = Math.sin(ang)*power;
+    push({type:'ribbon',x,y,vx,vy,life,t0:performance.now(),drag:0.995,g:0.24,
+          path:[], curl:rand(0.012,0.02), len:18, col:PAL[(Math.random()*PAL.length)|0], glow:true});
+  }
+
+  function burst({x=innerWidth/2,y=innerHeight*0.35,count=220,spread=PI*1.1,power=18,life=2800}={}){
+    const base = PI/2;
+    for(let i=0;i<count;i++){
+      const ang = base + (Math.random()*spread - spread/2);
+      const spd = power * rand(0.6,1.2);
+      confetti(x,y,Math.cos(ang)*spd,Math.sin(ang)*spd, life*rand(0.85,1.1));
+      if (Math.random()<0.35) sparkle(x,y,Math.cos(ang)*spd*0.6,Math.sin(ang)*spd*0.6, 900);
+      if (Math.random()<0.12) streamer(x,y,ang, power*0.9, life*0.9);
+    }
+  }
+
+  function rain({duration=2400,rate=240,power=8}={}){
+    const start = performance.now();
+    return new Promise(resolve=>{
+      const step=(now)=>{
+        if (now-start<duration){
+          const n = Math.max(1,Math.round(rate/60));
+          for(let i=0;i<n;i++){
+            const x = Math.random()*innerWidth, y=-20;
+            confetti(x,y,rand(-1,1),rand(power*0.7,power*1.2), rand(2100,2700));
+            if (Math.random()<0.25) sparkle(x,y,rand(-0.6,0.6),rand(power*0.5,power), 800);
+          }
+          requestAnimationFrame(step);
+        } else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  // One-button orchestration
+  async function grandFinale({duration=3000}={}){
+    // Layered blooms, symmetric sides, then rain
+    const cx = innerWidth/2, cy = innerHeight*0.33;
+    burst({x:cx, y:cy, count:260, power:20, life:3200});
+    setTimeout(()=> burst({x:cx*0.35, y:cy*1.02, count:180, power:18, life:3000}), 180);
+    setTimeout(()=> burst({x:cx*1.65, y:cy*1.02, count:180, power:18, life:3000}), 360);
+    setTimeout(()=> burst({x:cx, y:cy*0.82, count:220, power:19, life:3200}), 620);
+    await rain({duration, rate:300, power:9});
+
+    if (!running){ running=true; requestAnimationFrame(tick); }
+    // Wait until all particles are gone
+    await new Promise(res=>{
+      const chk=()=> parts.length? requestAnimationFrame(chk) : res();
+      chk();
+    });
+  }
+
+  function tick(now){
+    ctx.clearRect(0,0,innerWidth,innerHeight);
+    ctx.globalCompositeOperation = 'lighter'; // additive glow
+    parts = parts.filter(p => now - p.t0 < p.life);
+
+    for (const p of parts){
+      const t = (now - p.t0) / p.life;
+      p.vx *= p.drag; p.vy = p.vy*p.drag + p.g;
+      p.x += p.vx + (p.sway? Math.sin(now*p.sway)*0.8 : 0);
+      p.y += p.vy;
+      if (p.vr) p.rot += p.vr;
+      if (p.type==='ribbon'){
+        p.path.push([p.x,p.y]);
+        if (p.path.length>p.len) p.path.shift();
+      }
+
+      const a = Math.max(0,1 - t);            // fade
+      ctx.save();
+      if (p.glow){ ctx.shadowColor = p.col||'#fff'; ctx.shadowBlur = 12; }
+      ctx.globalAlpha = a;
+
+      if (p.type==='rect'){
+        ctx.translate(p.x,p.y); ctx.rotate(p.rot||0);
+        const g = ctx.createLinearGradient(-p.w/2,-p.h/2,p.w/2,p.h/2);
+        g.addColorStop(0, p.col); g.addColorStop(1, '#ffffff');
+        ctx.fillStyle = g;
+        ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      } else if (p.type==='dot'){
+        ctx.beginPath(); ctx.fillStyle=p.col; ctx.arc(p.x,p.y,p.r,0,PI*2); ctx.fill();
+      } else if (p.type==='ribbon'){
+        ctx.strokeStyle = p.col; ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        for(let i=0;i<p.path.length;i++){
+          const [x,y]=p.path[i];
+          const off = Math.sin(i*0.9 + now*p.curl)*3.2;
+          if (i===0) ctx.moveTo(x+off,y);
+          else ctx.lineTo(x+off,y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    if (parts.length) requestAnimationFrame(tick);
+    else { running=false; ctx.globalCompositeOperation='source-over'; ctx.clearRect(0,0,innerWidth,innerHeight); }
+  }
+
+  return { grandFinale };
+})();
+
+
+
+
+  /* ------------ responsive layout (tighter at 720×1280) ------------ */
+function computeLayout(){
+  const styles = getComputedStyle(document.documentElement);
+  const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
+
+  const vw = Math.max(0, innerWidth  - gutter*2);
+  const vh = Math.max(0, innerHeight - gutter*2);
+
+  const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
+const progressH = (innerWidth <= 740 ? 4 : 10);
+
+
+  // Drawer width
+const drawerVisible = !drawer.classList.contains('collapsed');
+let drawerW = 0;
+if (drawerVisible) drawerW = Math.min(320, Math.floor(vw * 0.35)) + 10;
+document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
+
+  // Keyboard height fraction — super-compact for ≤720px
+const portrait = vh >= vw;
+let kbFrac = portrait ? 0.20 : 0.24;   // base
+if (vw <= 740) kbFrac = 0.14;          // free height for the board
+if (vw <= 720) kbFrac = 0.135;   
+
+
+const kbH   = Math.max(132, Math.min(240, Math.floor((vh - topbarH) * kbFrac)));
+const kbRow = Math.max(52, Math.min(78, Math.floor(kbH / 4) - 4));  // ← chunkier keys
+document.documentElement.style.setProperty('--kb-row', kbRow + 'px');
+
+const sidePad = (vw <= 720) ? 0 : (vw <= 740 ? 6 : 10);
+const availW  = vw - drawerW - sidePad * 2;
+
+const ribbonH = document.getElementById('clueRibbon')?.offsetHeight || 0;
+const kbWrapH = document.querySelector('.kb-wrap')?.offsetHeight || (kbRow * 4 + 26);
+const hintH   = 0; // hidden above
+
+const verticalUsed = topbarH + progressH + ribbonH + kbWrapH + hintH + 24;
+const availH  = Math.max(200, vh - verticalUsed);
+
+  const size = Math.max(280, Math.min(980, availW, availH));
+document.documentElement.style.setProperty('--board-size', size + 'px');
+}
+
+
   const savedIdxRaw = localStorage.getItem(CURRENT_SET_KEY);
   const savedIdx = Number(savedIdxRaw);
   const startIdx = Number.isInteger(savedIdx) && savedIdx >= 0 && savedIdx < SETS.length
@@ -883,7 +1094,8 @@
   window.computeLayout = computeLayout;
   addEventListener('resize', computeLayout);
   addEventListener('orientationchange', computeLayout);
-  queueMicrotask(()=>{ app.focus(); computeLayout(); });
+  if (window.visualViewport){ window.visualViewport.addEventListener('resize', computeLayout); }
+  queueMicrotask(()=>{ document.getElementById('app').focus(); computeLayout(); });
 })();
 </script>
 </body>
