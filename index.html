@@ -3,163 +3,1238 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<title>NSTW 2025 Crossword – Landing</title>
+<title>NSTW 2025 – Crossword</title>
+<link rel="manifest" href="manifest.webmanifest" />
 <meta name="theme-color" content="#0b1220" />
-<style>
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; background: #0b1220; }
-  body { position: relative; } /* stacking context */
 
-  /* Fullscreen background (landscape) */
-  body::before{
-    content:"";
-    position: fixed; inset: 0; z-index: 0;
-    background:
-      linear-gradient(rgba(0,0,0,.20), rgba(0,0,0,.20)),
-      url("assets/CROSSWORD%20LANDING%20PAGE.png") center / cover no-repeat;
+<style>
+  :root{
+    --vh: 1vh;
+    --gap: 2px;
+    --cell-min: 50px;
+    --focus-outline: 4px;
+    --board-size: 720px;   /* computed in JS */
+    --kb-row: 72px;
+    --gutter: clamp(6px, 2.2vw, 12px);
+    --drawerW: 0px;
+    --ink: #0f172a;
+    --accent: #5b8cff;
+    --ok: #22c55e;
+    --bad: #ef4444;
+    --ink-soft: #b9c2d0;
   }
-  /* Portrait override (swap image here if you have a portrait asset) */
-  @media (orientation: portrait){
-    body::before{
-      background:
-        linear-gradient(rgba(0,0,0,.20), rgba(0,0,0,.20)),
-        url("assets/CROSSWORD%20LANDING%20PAGE.png") center / cover no-repeat;
-      /* e.g. url("assets/CROSSWORD%20LANDING%20PAGE2.png") */
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+
+  body{
+    font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:#f8fafc;
+    -webkit-tap-highlight-color: transparent;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-top: calc(env(safe-area-inset-top) * 1);
+    padding-bottom: calc(env(safe-area-inset-bottom) * 1);
+    overflow:hidden;
+  }
+
+  /* Landing background */
+  body.landing{
+    background:
+      linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.30)),
+      url("assets/CROSSWORD%20LANDING%20PAGE3.png") center/cover no-repeat fixed;
+  }
+
+  /* Crossword background */
+  body.crossword{
+    background:
+      radial-gradient(1100px 700px at 80% 20%, rgba(0,0,0,.25), transparent 60%),
+      linear-gradient(rgba(0,0,0,0.20), rgba(0,0,0,0.20)),
+      url("assets/Background-33.jpg") center/cover no-repeat;
+  }
+
+  /* ───── Landing layout ───── */
+  .vignette{
+    position:fixed; inset:0; pointer-events:none;
+    background: radial-gradient(1200px 800px at 50% 40%, rgba(0,0,0,.15), transparent 60%);
+    z-index:1;
+  }
+
+  #landingView{
+    position:relative;
+    z-index:2;
+    width:100%;
+    height:100%;
+    cursor:pointer; /* whole poster is clickable */
+  }
+
+  /* Bottom-right fullscreen pill (landing & crossword) */
+  .fs-pill{
+    position:fixed;
+    right:22px;
+    bottom:22px;
+    z-index:40;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:10px 22px;
+    border-radius:999px;
+    border:none;
+    cursor:pointer;
+    font:600 13px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    background:linear-gradient(135deg,#facc15,#ea580c);
+    color:#111827;
+    box-shadow:0 18px 40px rgba(0,0,0,.7);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .fs-pill span.icon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px;height:18px;
+    border-radius:999px;
+    background:rgba(0,0,0,.25);
+    color:#fefce8;
+    font-size:10px;
+  }
+  .fs-pill:active{
+    transform:translateY(1px) scale(.99);
+    box-shadow:0 10px 24px rgba(0,0,0,.7);
+  }
+
+  @media (max-width:480px){
+    .fs-pill{
+      right:14px;
+      bottom:14px;
+      padding:9px 18px;
+      font-size:11px;
     }
   }
 
-  /* Soft vignette overlay */
-  .vignette{
-    position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background: radial-gradient(1200px 800px at 50% 40%, rgba(0,0,0,.10), transparent 60%);
-  }
-
-  /* Invisible full-screen hotspot */
-  .hotspot{
-    position: fixed; inset: 0; z-index: 2;
-    background: transparent;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Fullscreen button */
-  .fs-btn{
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 3; /* above hotspot */
-    padding: 12px 20px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.6);
-    background: rgba(0,0,0,.55);
-    color: #f9fafb;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 14px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    backdrop-filter: blur(6px);
-  }
-  .fs-btn span.icon{
-    font-size: 16px;
-    line-height: 1;
-  }
-  .fs-btn:focus-visible{
-    outline: 2px solid #38bdf8;
-    outline-offset: 3px;
-  }
-  .fs-btn:active{
-    transform: translateY(1px);
-  }
-
-  /* Screen-reader hint */
   .sr-only{
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-    overflow: hidden; clip: rect(0,0,1px,1px); white-space: nowrap; border: 0;
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,1px,1px); white-space:nowrap; border:0;
   }
+
+  /* ───── Crossword layout ───── */
+  #crosswordView{
+    position:absolute;
+    inset:0;
+    z-index:3;
+  }
+
+  .app{
+    position:relative;
+    height:calc(var(--vh) * 100);
+    max-width:100vw;
+    margin:0 auto;
+    padding:var(--gutter);
+    user-select:none;
+    outline:none;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:0; }
+  .brand h1{ margin:0; font-weight:900; letter-spacing:.2px; font-size:clamp(18px,2.6vw,32px); }
+  .brand small{ opacity:.85; font-weight:600; color:#b9c2d0; white-space:nowrap; }
+  .buttons{ display:flex; gap:6px; overflow:auto; padding-bottom:2px; }
+  .buttons::-webkit-scrollbar{ display:none; }
+  .btn{
+    font:inherit; padding:6px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.28);
+    background:rgba(255,255,255,.14); color:#fff; cursor:pointer; touch-action:manipulation;
+    backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%);
+    box-shadow: 0 6px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.08);
+    transition: transform .08s ease, background .15s ease; white-space:nowrap;
+  }
+  .btn:active{ transform: translateY(1px) scale(.99); }
+  .btn.primary{ background: rgba(255,255,255,.20); border-color: rgba(255,255,255,.36); }
+  .btn.badge{ position:relative; padding-left:9px; padding-right:9px; }
+  .btn .badge-dot{ width:7px; height:7px; border-radius:50%; background:#22d3ee; display:inline-block; margin-left:6px; }
+  .progress{ height:6px; width:100%; background:rgba(255,255,255,.18); border-radius:999px; overflow:hidden; }
+  .progress > i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#38bdf8,#60a5fa); transition:width .25s ease; }
+
+  .stage{ position:relative; display:grid; place-items:center; gap:10px; padding-right:var(--drawerW); transition: padding-right .18s ease; }
+  .board-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; }
+
+  .board{
+    position: relative;
+    width: var(--board-size);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    background:rgba(255,255,255,.06);
+    display:grid; gap:var(--gap);
+    touch-action:manipulation;
+    border-radius:16px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.35);
+    padding:6px;
+  }
+  .board, .clue-ribbon, .kb-wrap{
+    width: var(--board-size);
+    margin-left:auto; margin-right:auto;
+  }
+  .grid{ width:100%; height:100%; display:grid; }
+
+  .clue-ribbon{
+    display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center;
+    margin:6px auto 8px; padding:10px; border-radius:14px;
+    background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.20);
+    backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%);
+    box-shadow: 0 8px 20px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .clue-ribbon .pill{
+    min-height: 48px;
+    padding:12px 14px;
+    border-radius:12px; font-weight:800; color:#e8eef9;
+    background:#0f172a; border:1px dashed rgba(255,255,255,.22);
+    font-size: clamp(14px, 2.2vw, 18px);
+    line-height:1.3;
+    white-space:normal; overflow-wrap:anywhere; text-align:left;
+  }
+  .pill-btn, .pill-secondary{
+    font:inherit; font-weight:900; padding:8px 12px; border-radius:12px; cursor:pointer;
+    border:1px solid rgba(255,255,255,.28); color:#fff; background:rgba(255,255,255,.12);
+    box-shadow: 0 6px 18px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+
+  .kb-wrap{ padding-bottom:4px; }
+  .keyboard{ display:grid; gap:8px; }
+  .kb-row{ display:grid; grid-auto-rows: var(--kb-row); gap:8px; }
+  .kb-row.row1   { grid-template-columns: repeat(10, 1fr); }
+  .kb-row.row2   { grid-template-columns: repeat(9, 1fr); }
+  .kb-row.row3   { grid-template-columns: repeat(7, 1fr); }
+  .kb-row.actions{ grid-template-columns: 1.4fr 2.2fr 1.6fr; }
+
+  .keyboard button{
+    border:2px solid rgba(255,255,255,.28);
+    border-radius:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.12));
+    color:#fff;
+    font-size:clamp(17px,2.2vw,26px);
+    font-weight:800; letter-spacing:.6px;
+    box-shadow: 0 10px 22px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.08), inset 0 -4px 10px rgba(0,0,0,.18);
+    backdrop-filter: blur(8px) saturate(130%); -webkit-backdrop-filter: blur(8px) saturate(130%);
+    transition: transform .08s ease, background .12s ease;
+  }
+  .keyboard button:active{ transform: translateY(1px) scale(.99); }
+
+  .hint{ text-align:center; font-size:12px; color:#e2e8f0; opacity:.95; text-shadow:0 2px 10px rgba(0,0,0,.55); }
+
+  .cell{
+    position:relative; background:rgba(255,255,255,.96); display:grid; place-items:center; font-weight:900;
+    min-width:var(--cell-min); min-height:var(--cell-min); font-size:clamp(18px,3.6vw,34px);
+    border-radius:10px; box-shadow:0 1px 0 rgba(0,0,0,.08); color:#0b1220;
+  }
+  .cell.block{ background:#0b1120; border-radius:12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .cell.active:not(.block){ background:linear-gradient(#ffffff,#f8fbff); box-shadow:0 0 0 3px rgba(91,140,255,.18) inset; }
+  .cell.focus:not(.block){ outline:var(--focus-outline) solid var(--accent); outline-offset:-4px; z-index:2; }
+  .cell.ok{ box-shadow: inset 0 0 0 4px var(--ok); }
+  .cell.bad{ box-shadow: inset 0 0 0 4px var(--bad); }
+  .num{ position:absolute; top:4px; left:6px; opacity:.85; font-weight:800; font-size:clamp(10px,3vw,14px); line-height:1; color:#64748b; }
+  .letter{ letter-spacing:.5px; }
+
+  .clues-drawer{
+    position:absolute; right:var(--gutter); top:calc(58px + var(--gutter)); bottom:var(--gutter);
+    width:340px; background:#0b1220; border:1px solid #1f2937; border-radius:18px; padding:12px; overflow:hidden;
+    box-shadow: 0 14px 34px rgba(0,0,0,.45); transition: transform .18s ease, opacity .18s ease; z-index:30;
+  }
+  .clues-drawer.collapsed{ transform:translateX(360px); opacity:0; pointer-events:none; }
+  .clues-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .clues-head h2{ margin:0; font-size:18px; }
+  .clues-body{ position:absolute; inset:56px 10px 10px 10px; overflow:auto; }
+  .clue{ font-size:16px; margin:4px 0; padding:8px 10px; border-radius:10px; line-height:1.35; background:#0f172a; border:1px solid transparent; color:#e5eaf3; }
+  .clue small{ opacity:.75; }
+  .clue.active{ background:#111b2e; border-color:#3756a8; }
+  .toast{ position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:#0b1220; color:#fff; padding:12px 18px; border-radius:12px; font-weight:700; box-shadow:0 14px 30px rgba(0,0,0,.45); z-index:50; }
+  #fx{
+    position:fixed; inset:0; z-index:20; pointer-events:none;
+  }
+
+  /* Bigger topbar buttons */
+  .topbar .buttons { gap: 10px; }
+  .topbar .btn{
+    padding: 10px 16px;
+    min-height: 44px;
+    font-size: clamp(14px, 1.5vw, 18px);
+    border-radius: 12px;
+  }
+  .topbar .btn .badge-dot{ width: 9px; height: 9px; }
+
+  /* Ultra-compact portrait */
+  @media (max-width: 740px) and (min-height: 1100px) {
+    :root{ --gutter: 2px; }
+    .board{ padding:4px; }
+    .clue-ribbon{ padding:6px 8px; margin:4px auto 6px; }
+    .clue-ribbon .pill{ padding:8px 10px; min-height:42px; }
+    .keyboard{ gap:6px; }
+    .kb-row{ gap:6px; }
+    .hint{ display:none; }
+    .topbar .btn{
+      padding: 11px 18px;
+      min-height: 46px;
+      font-size: clamp(15px, 2.4vw, 20px);
+    }
+  }
+
+  @media (max-width: 720px) and (min-height: 1100px) {
+    :root{ --gutter: 4px; }
+    .clue-ribbon{ padding:6px 8px; margin:4px auto 6px; }
+    .clue-ribbon .pill{ padding:8px 10px; min-height:42px; }
+    .keyboard{ gap:6px; }
+    .kb-row{ gap:6px; }
+    .board{ padding:4px; }
+    .hint{ display:none; }
+  }
+
+  @media (max-width:430px){ :root{--cell-min:40px} .btn{padding:7px 10px} .kb-row{grid-auto-rows:minmax(50px,var(--kb-row))} .clues-drawer{width:320px} }
+  @media (max-width:414px){ :root{--cell-min:38px} .brand h1{font-size:20px} .kb-row{grid-auto-rows:minmax(48px,var(--kb-row))} .clues-drawer{width:300px} }
+  @media (max-width:390px){ :root{--cell-min:36px} .btn{padding:6px 9px} .keyboard button{font-size:16px} .kb-row{grid-auto-rows:minmax(46px,var(--kb-row))} }
+  @media (max-height:500px) and (orientation:landscape){ :root{--kb-row:54px} .keyboard button{font-size:15px} .brand small{display:none} }
 </style>
 </head>
-<body>
-  <div class="vignette" aria-hidden="true"></div>
+<body class="landing">
 
-  <!-- Full-page click/tap area -->
-  <div id="hotspot" class="hotspot" role="button" aria-label="Open crossword"></div>
-  <span class="sr-only" id="hint">Press Enter or Space to open the crossword.</span>
+<!-- Landing view (poster only, whole area is clickable) -->
+<div class="vignette" aria-hidden="true"></div>
+<div id="landingView"></div>
 
-  <!-- Visible fullscreen button -->
-  <button id="fsBtn" class="fs-btn" type="button">
-    <span class="icon">⛶</span>
-    <span>Fullscreen</span>
-  </button>
+<!-- Crossword view -->
+<div id="crosswordView" hidden>
+  <div class="app" tabindex="0" id="app">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Crossword</h1>
+        <small>NSTW 2025</small>
+      </div>
+      <div class="buttons">
+        <button class="btn" id="btnReturn">Return</button>
+        <button class="btn badge" id="btnClues">Clues <span class="badge-dot"></span></button>
+        <button class="btn" id="btnToggle">Across</button>
+        <button class="btn" id="btnClear">Clear</button>
+        <button class="btn" id="btnReset">Reset</button>
+        <!-- <button class="btn primary" id="btnFS">Fullscreen</button> -->
+      </div>
+    </div>
+
+    <div class="progress"><i id="progressFill"></i></div>
+
+    <div class="stage">
+      <div class="board-wrap" id="boardWrap">
+        <div class="board"><div class="grid" id="board" aria-label="Crossword board"></div></div>
+
+        <div class="clue-ribbon" id="clueRibbon" aria-live="polite">
+          <button class="pill-btn" id="cluePrev" title="Previous clue">‹</button>
+          <div class="pill" id="clueText">Tap a cell to begin.</div>
+          <button class="pill-btn" id="clueNext" title="Next clue">›</button>
+          <button class="pill-secondary" id="clueOpen" title="Open all clues">Open</button>
+        </div>
+
+        <div class="kb-wrap">
+          <div class="keyboard" id="keyboard">
+            <div class="kb-row row1"    id="kbRow1"></div>
+            <div class="kb-row row2"    id="kbRow2"></div>
+            <div class="kb-row row3"    id="kbRow3"></div>
+            <div class="kb-row actions" id="kbActions"></div>
+          </div>
+        </div>
+        <div class="hint">Tip: Tap a cell to select; tap again to toggle Across/Down. Arrow keys & D-pads work too.</div>
+      </div>
+      <div class="norm-spacer" id="normSpacer"></div>
+    </div>
+
+    <aside id="drawer" class="clues-drawer collapsed">
+      <div class="clues-head">
+        <h2 id="setTitle">Active clue</h2>
+        <button class="btn" id="btnCloseDrawer" style="padding:6px 10px;">Hide</button>
+      </div>
+      <div class="clues-body">
+        <div id="activeClue" class="clue" style="font-weight:800;border:1px dashed rgba(255,255,255,.18);"></div>
+        <h3 style="margin:12px 6px 6px;">Across</h3>
+        <div id="acrossClues"></div>
+        <h3 style="margin:12px 6px 6px;">Down</h3>
+        <div id="downClues"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<button id="btnFullscreen" class="fs-pill">
+  <span class="icon">⤢</span>
+  <span>Fullscreen</span>
+</button>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+<span class="sr-only" id="hint">Tap anywhere on the screen to open the crossword. Use the Fullscreen button at the bottom-right to toggle fullscreen.</span>
 
 <script>
-  (function () {
-    const TARGET = 'crossword.html';
+(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('serviceworker.js');
+  }
 
-    const go = () => { window.location.href = TARGET; };
+  const landingView   = document.getElementById('landingView');
+  const crosswordView = document.getElementById('crosswordView');
+  const btnFullscreen = document.getElementById('btnFullscreen');
 
-    async function enterFullscreen() {
-      const el = document.documentElement;
-      const req =
-        el.requestFullscreen ||
-        el.webkitRequestFullscreen ||
-        el.msRequestFullscreen;
+  // track "next random set after solve"
+  let pendingNewSet   = false;
+  let pendingSetIndex = 0;
 
-      if (!req) return false;
+  function setMode(mode){
+    if (mode === 'landing'){
+      document.body.classList.add('landing');
+      document.body.classList.remove('crossword');
+      landingView.hidden   = false;
+      crosswordView.hidden = true;
+    } else {
+      document.body.classList.remove('landing');
+      document.body.classList.add('crossword');
+      landingView.hidden   = true;
+      crosswordView.hidden = false;
+    }
+  }
 
-      try {
-        await req.call(el, { navigationUI: "hide" });
-        // Best-effort landscape lock (some TVs/browsers support this)
-        if (screen.orientation && screen.orientation.lock) {
-          try { await screen.orientation.lock('landscape'); } catch {}
+  async function enterFullscreen(){
+    const el  = document.documentElement;
+    const req = el.requestFullscreen ||
+                el.webkitRequestFullscreen ||
+                el.msRequestFullscreen;
+    if (!req) return;
+    try { await req.call(el); } catch(e) {}
+  }
+
+  btnFullscreen.addEventListener('click', () => { enterFullscreen(); });
+
+  // click ANYWHERE on landing poster -> open crossword
+  landingView.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    // if we have a pending random set (after confetti), load it
+    if (pendingNewSet) {
+      loadSet(pendingSetIndex);
+      pendingNewSet = false;
+    }
+    setMode('crossword');
+    document.getElementById('app')?.focus?.();
+    computeLayout();
+  }, { passive:false });
+
+  // -------- shared helpers --------
+  function setVh(){
+    const base = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty('--vh', `${base*0.01}px`);
+  }
+  setVh();
+  addEventListener('resize',setVh);
+  addEventListener('orientationchange',setVh);
+  if (window.visualViewport){ window.visualViewport.addEventListener('resize', setVh); }
+
+  /* ------------ STRICT grid builder ------------ */
+  function makeGridSet(rows, cols, placements){
+    const L = Array.from({length:rows},()=>Array(cols).fill(null));
+    const S = Array.from({length:rows},()=>Array(cols).fill(null));
+    for (const p of placements){
+      const {answer, r, c, dir} = p;
+      for (let i=0;i<answer.length;i++){
+        const rr = r + (dir==='down'?i:0);
+        const cc = c + (dir==='across'?i:0);
+        L[rr][cc]   = "";
+        S[rr][cc]   = answer[i].toUpperCase();
+      }
+    }
+    const startNum = new Map();
+    placements.forEach(p => { if (p.num != null) startNum.set(`${p.r},${p.c}`, p.num); });
+    const NUMBERS_GRID = Array.from({length:rows},()=>Array(cols).fill(''));
+    for (const [key, num] of startNum.entries()){
+      const [r,c] = key.split(',').map(Number);
+      NUMBERS_GRID[r][c] = num;
+    }
+    const CLUES_ACROSS = {}, CLUES_DOWN = {};
+    for (const p of placements){
+      if (p.dir==='across') CLUES_ACROSS[p.num] = { clue: p.clue || '(Across)', answer: p.answer };
+      else                  CLUES_DOWN[p.num]   = { clue: p.clue || '(Down)',   answer: p.answer };
+    }
+    return { LAYOUT:L, SOLUTION:S, CLUES_ACROSS, CLUES_DOWN, NUMBERS_GRID };
+  }
+
+  /* ------------ Sets ------------ */
+  const SETS = [
+    { name:'Set 1', placements:[
+      { num:1,  answer:'WORK',    r:1,  c:1,  dir:'down',   clue:'What scientists do every day' },
+      { num:2,  answer:'PROJECT', r:3,  c:0,  dir:'across', clue:'Basic unit in the investigation of specific S&T problem/s with predetermined objective/s within a time frame' },
+      { num:3,  answer:'CANADA',  r:3,  c:5,  dir:'down',   clue:'PhD and MS scholars at University of Alberta' },
+      { num:4,  answer:'HEALTH',  r:4,  c:11, dir:'down',   clue:'Field of study in collaboration with Italy' },
+      { num:8,  answer:'LAB',     r:7,  c:11, dir:'across', clue:'A place where scientists do experiments' },
+      { num:5,  answer:'FUNDING', r:7,  c:2,  dir:'across', clue:'Money provided by an org/government for a purpose' },
+      { num:6,  answer:'UK',      r:7,  c:3,  dir:'down',   clue:'Top partnership is on health, environment, and agriculture' },
+      { num:7,  answer:'GRANT',   r:7,  c:8,  dir:'down',   clue:'Financial assistance provided for a specific purpose' },
+      { num:9,  answer:'EARTH',   r:9,  c:7,  dir:'across', clue:'The planet where we live' },
+      { num:10, answer:'TECH',    r:11, c:8,  dir:'across', clue:'Short for “technology”' },
+    ]},
+    { name:'Set 2', placements:[
+      { num:1, answer:'TEAM',    r:2,  c:9,  dir:'down',   clue:'A group of people working together' },
+      { num:2, answer:'TAIWAN',  r:3,  c:11, dir:'down',   clue:'Joint researches and sandwich scholarship programs' },
+      { num:3, answer:'JAPAN',   r:4,  c:8,  dir:'across', clue:'Osaka and Nagoya' },
+      { num:4, answer:'FRANCE',  r:6,  c:7,  dir:'down',   clue:'Sending PhD scholars at Texas Tech University taking up Plant and Soil Science' },
+      { num:5, answer:'BASIC',   r:7,  c:3,  dir:'down',   clue:'Type of research that focuses on expanding general knowledge and theory' },
+      { num:6, answer:'PROGRAM', r:7,  c:6,  dir:'across', clue:'Group of interrelated/complementing S&T projects meeting a goal within a time frame' },
+      { num:7, answer:'USA',     r:8,  c:1,  dir:'across', clue:'PhD scholars at Texas Tech University taking up Plant and Soil Science' },
+      { num:8, answer:'SCIENCE', r:9,  c:3,  dir:'across', clue:'The study of nature and how things work' },
+      { num:9, answer:'HELP',    r:11, c:6,  dir:'across', clue:'What scientists do for the people' },
+    ]},
+    { name:'Set 3', placements:[
+      { num:1,  answer:'IDEA',    r:0,  c:6,  dir:'down',   clue:'The beginning of every new invention' },
+      { num:2,  answer:'CLM',     r:1,  c:2,  dir:'down',   clue:'One of the most notable partnership output is the technical cooperation ASEAN scholarship' },
+      { num:3,  answer:'LEADER',  r:2,  c:2,  dir:'across', clue:'The person who plans, organizes and supervises the overall activities of a program or project' },
+      { num:4,  answer:'APPLIED', r:2,  c:4,  dir:'down',   clue:'Type of research that aims to solve specific, real-world problems by using existing knowledge' },
+      { num:5,  answer:'COUNTRY', r:3,  c:9,  dir:'down',   clue:'An area of land, which has its own government and laws' },
+      { num:6,  answer:'PEOPLE',  r:6,  c:6,  dir:'down',   clue:'Individual human beings; Collective or community of an ethnic group or nation' },
+      { num:7,  answer:'BENEFIT', r:7,  c:3,  dir:'across', clue:'Something that produces good and helpful results or effects or that promotes well-being' },
+      { num:8,  answer:'DATA',    r:10, c:10, dir:'down',   clue:'Information collected from experiments' },
+      { num:9,  answer:'EASIA',   r:11, c:6,  dir:'across', clue:'Top partnership is on health and climate & weather' },
+      { num:10, answer:'INDIA',   r:13, c:6,  dir:'across', clue:'The partnership is on AI, engineering, and health.' },
+    ]}
+  ];
+
+  const STORAGE_KEY      = 'crossword-nstw2025-v7-14x14';
+  const CURRENT_SET_KEY  = `${STORAGE_KEY}::currentSet`;
+  const ROWS = 14, COLS = 14;
+
+  let grid = [];
+  let focus = { r:0, c:0 };
+  let dir   = 'across';
+  let currentSetIndex = 0;
+
+  const app           = document.getElementById('app');
+  const board         = document.getElementById('board');
+  const progressFill  = document.getElementById('progressFill');
+  const activeClueEl  = document.getElementById('activeClue');
+  const acrossCluesEl = document.getElementById('acrossClues');
+  const downCluesEl   = document.getElementById('downClues');
+  const drawer        = document.getElementById('drawer');
+  const setTitle      = document.getElementById('setTitle');
+
+  const clueTextEl = document.getElementById('clueText');
+  const cluePrev   = document.getElementById('cluePrev');
+  const clueNext   = document.getElementById('clueNext');
+  const clueOpen   = document.getElementById('clueOpen');
+
+  const kbRow1    = document.getElementById('kbRow1');
+  const kbRow2    = document.getElementById('kbRow2');
+  const kbRow3    = document.getElementById('kbRow3');
+  const kbActions = document.getElementById('kbActions');
+
+  function makeKey(label, handler){
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); handler(); if (navigator.vibrate) navigator.vibrate(8); }, { passive: false });
+    return b;
+  }
+  "QWERTYUIOP".split('').forEach(k => kbRow1.appendChild(makeKey(k, () => typeKey(k))));
+  "ASDFGHJKL".split('').forEach(k => kbRow2.appendChild(makeKey(k, () => typeKey(k))));
+  "ZXCVBNM".split('').forEach(k => kbRow3.appendChild(makeKey(k, () => typeKey(k))));
+  kbActions.appendChild(makeKey('⌫', backspace));
+  kbActions.appendChild(makeKey('ACROSS/DOWN', toggleDir));
+  kbActions.appendChild(makeKey('CLEAR', clearWord));
+
+  document.getElementById('btnReturn').addEventListener('click', () => {
+    setMode('landing');
+  });
+  document.getElementById('btnToggle').addEventListener('click', () => { toggleDir(); app.focus(); });
+  document.getElementById('btnClear').addEventListener('click', clearWord);
+  document.getElementById('btnReset').addEventListener('click', resetPuzzle);
+  // document.getElementById('btnFS').addEventListener('click', () => { enterFullscreen(); });
+  document.getElementById('btnClues').addEventListener('click', () => { drawer.classList.toggle('collapsed'); computeLayout(); });
+  document.getElementById('btnCloseDrawer').addEventListener('click', () => { drawer.classList.add('collapsed'); computeLayout(); });
+
+  cluePrev.addEventListener('click', ()=> jumpClue(-1));
+  clueNext.addEventListener('click', ()=> jumpClue(+1));
+  clueOpen .addEventListener('click', ()=> { drawer.classList.remove('collapsed'); computeLayout(); });
+
+  const onKey = (e) => {
+    const tag=(e.target.tagName||'').toLowerCase(); if (['input','textarea','select'].includes(tag) || e.isComposing) return;
+    const k=e.key.toUpperCase(); if (e.repeat){ e.preventDefault(); return; }
+    if (/^[A-Z]$/.test(k)) { e.preventDefault(); e.stopPropagation(); typeKey(k); return; }
+    if (e.key==='Backspace') { e.preventDefault(); e.stopPropagation(); backspace(); return; }
+    if (e.key==='ArrowRight'){ e.preventDefault(); dir='across'; moveNext(); return; }
+    if (e.key==='ArrowLeft') { e.preventDefault(); dir='across'; movePrev(); return; }
+    if (e.key==='ArrowDown') { e.preventDefault(); dir='down';   moveNext(); return; }
+    if (e.key==='ArrowUp')   { e.preventDefault(); dir='down';   movePrev(); return; }
+  };
+  if (!window.__CROSSWORD_KEYS_BOUND__){ addEventListener('keydown', onKey, {capture:true}); window.__CROSSWORD_KEYS_BOUND__=true; }
+  addEventListener('pointerdown', (ev)=>{ const tag=(ev.target.tagName||'').toLowerCase(); if (!['input','textarea','select'].includes(tag)) app?.focus?.(); }, {passive:true});
+
+  function buildGrid(){
+    const LAYOUT = window.LAYOUT, NUMBERS_GRID = window.NUMBERS_GRID;
+    grid = LAYOUT.map((row,r)=>row.map((v,c)=>{
+      const block = v===null;
+      const num = block ? '' : (NUMBERS_GRID?.[r]?.[c] || '');
+      return { r,c,block,letter:'',num };
+    }));
+  }
+
+  function loadSet(index){
+    currentSetIndex = index;
+    localStorage.setItem(CURRENT_SET_KEY, String(index));
+
+    const conf = SETS[index];
+    const { LAYOUT, SOLUTION, CLUES_ACROSS, CLUES_DOWN, NUMBERS_GRID } =
+      makeGridSet(ROWS, COLS, conf.placements);
+
+    window.LAYOUT        = LAYOUT;
+    window.SOLUTION      = SOLUTION;
+    window.CLUES_ACROSS  = CLUES_ACROSS;
+    window.CLUES_DOWN    = CLUES_DOWN;
+    window.NUMBERS_GRID  = NUMBERS_GRID;
+
+    setTitle.textContent = `${conf.name} – Active clue`;
+
+    buildGrid();
+    loadLetters();
+    renderBoard();
+
+    const first=grid.flat().find(c=>!c.block); if (first) focus={r:first.r,c:first.c};
+    updateHighlights(); updateActiveClue(); updateProgress(); computeLayout();
+  }
+
+  function renderBoard(){
+    board.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+    board.style.gridTemplateRows    = `repeat(${ROWS}, 1fr)`;
+    board.innerHTML = '';
+
+    grid.flat().forEach(cell => {
+      const el = document.createElement('div');
+      el.className = `cell${cell.block ? ' block' : ''}`;
+      el.dataset.r = cell.r;
+      el.dataset.c = cell.c;
+      el.dataset.stateacross = '';
+      el.dataset.statedown   = '';
+      if (cell.num){
+        const s = document.createElement('small');
+        s.className = 'num';
+        s.textContent = cell.num;
+        el.appendChild(s);
+      }
+      const span = document.createElement('span');
+      span.className = 'letter';
+      span.textContent = cell.letter || '';
+      el.appendChild(span);
+
+      el.addEventListener('pointerdown', e => { e.preventDefault(); onCellTap(cell); }, {passive:false});
+      board.appendChild(el);
+    });
+
+    updateHighlights();
+    renderClues();
+    updateActiveClue();
+    validateAllWords();
+    computeLayout();
+    updateProgress();
+  }
+
+  function getCell(r,c){ return grid[r]?.[c]; }
+  function cellEl(r,c){ return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); }
+
+  function onCellTap(cell){
+    if (cell.block) return;
+    const same = (cell.r===focus.r && cell.c===focus.c);
+    if (same) dir=(dir==='across')?'down':'across';
+    focus={r:cell.r,c:cell.c};
+    if (wordCellsAt(focus.r,focus.c,dir).length===1){ dir=(dir==='across')?'down':'across'; }
+    updateHighlights(); updateActiveClue(); validateBothDirectionsAt(focus.r, focus.c); saveLetters();
+  }
+
+  function wordCellsAt(r,c,d){
+    const cells=[];
+    if (d==='across'){
+      let cc=c; while (cc>0 && !getCell(r,cc-1).block) cc--;
+      while (cc<COLS && !getCell(r,cc).block){ cells.push(getCell(r,cc)); cc++; }
+    } else {
+      let rr=r; while (rr>0 && !getCell(rr-1,c).block) rr--;
+      while (rr<ROWS && !getCell(rr,c).block){ cells.push(getCell(rr,c)); rr++; }
+    }
+    return cells;
+  }
+  function currentWordCells(){ return wordCellsAt(focus.r,focus.c,dir); }
+
+  function updateHighlights(){
+    document.querySelectorAll('.cell').forEach(el=>el.classList.remove('active','focus'));
+    currentWordCells().forEach(c=>{ const el=cellEl(c.r,c.c); if (el) el.classList.add('active'); });
+    const f=cellEl(focus.r,focus.c); if (f && !getCell(focus.r,focus.c).block) f.classList.add('focus');
+    document.getElementById('btnToggle').textContent=(dir==='across')?'Across':'Down';
+  }
+
+  function applyMergedState(el){
+    const a=el.dataset.stateacross||''; const d=el.dataset.statedown||'';
+    el.classList.remove('ok','bad');
+    if (a==='bad'||d==='bad') el.classList.add('bad');
+    else if (a==='ok'||d==='ok') el.classList.add('ok');
+  }
+  function setWordStateForCell(r,c,dd,state){
+    const el=cellEl(r,c); if (!el) return;
+    if (dd==='across') el.dataset.stateacross=state||''; else el.dataset.statedown=state||'';
+    applyMergedState(el);
+  }
+
+  function validateWordAt(r,c,d){
+    const cells=wordCellsAt(r,c,d);
+    const guess=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
+    const want =cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
+    if (guess.some(ch=>!ch)){ cells.forEach(({r,c})=>setWordStateForCell(r,c,d,'')); return; }
+    const ok = guess.join('')===want.join(''); const st=ok?'ok':'bad'; cells.forEach(({r,c})=>setWordStateForCell(r,c,d,st));
+  }
+  function validateBothDirectionsAt(r,c){
+    if (window.LAYOUT[r][c]===null) return;
+    validateWordAt(r,c,'across'); validateWordAt(r,c,'down');
+  }
+  function validateAllWords(){
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+      if (window.LAYOUT[r][c]===null) continue;
+      const start=(c===0||window.LAYOUT[r][c-1]===null);
+      if (start) validateWordAt(r,c,'across');
+    }
+    for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++){
+      if (window.LAYOUT[r][c]===null) continue;
+      const start=(r===0||window.LAYOUT[r-1]?.[c]===null);
+      if (start) validateWordAt(r,c,'down');
+    }
+  }
+
+  function typeKey(k){
+    if (!drawer.classList.contains('collapsed')) { drawer.classList.add('collapsed'); computeLayout(); }
+    const cell=getCell(focus.r,focus.c); if (!cell || cell.block) return;
+    cell.letter=k;
+    cellEl(cell.r,cell.c).querySelector('.letter').textContent=k;
+    validateBothDirectionsAt(cell.r,cell.c);
+    moveNext(); saveLetters(); updateProgress(); finalCheckIfSolved();
+  }
+  function backspace(){
+    const cell=getCell(focus.r,focus.c); if (!cell || cell.block) return;
+    if (cell.letter){
+      cell.letter='';
+      cellEl(cell.r,cell.c).querySelector('.letter').textContent='';
+      validateBothDirectionsAt(cell.r,cell.c);
+      saveLetters(); updateProgress(); return;
+    }
+    movePrev();
+  }
+  function moveNext(){
+    const cells=currentWordCells();
+    const idx=cells.findIndex(c=>c.r===focus.r && c.c===focus.c);
+    const next=cells[idx+1]; if (next) focus={r:next.r,c:next.c};
+    updateHighlights();
+  }
+  function movePrev(){
+    const cells=currentWordCells();
+    const idx=cells.findIndex(c=>c.r===focus.r && c.c===focus.c);
+    const prev=cells[idx-1]; if (prev) focus={r:prev.r,c:prev.c};
+    updateHighlights();
+  }
+  function toggleDir(){ dir=(dir==='across')?'down':'across'; updateHighlights(); updateActiveClue(); validateBothDirectionsAt(focus.r,focus.c); }
+
+  function clearWord(){
+    const cells = currentWordCells();
+    cells.forEach(c => {
+      c.letter = '';
+      const el = cellEl(c.r, c.c);
+      if (!el) return;
+      el.querySelector('.letter').textContent = '';
+      el.dataset.stateacross = '';
+      el.dataset.statedown   = '';
+      el.classList.remove('ok','bad');
+    });
+    validateBothDirectionsAt(focus.r,focus.c);
+    saveLetters(); updateProgress();
+  }
+
+  function renderClues(){
+    acrossCluesEl.innerHTML=''; downCluesEl.innerHTML='';
+    const add = (map, dir) => {
+      Object.keys(map).sort((a,b)=>a-b).forEach(num=>{
+        const target = grid.flat().find(c => c.num == num);
+        if (!target) return;
+        const len = wordCellsAt(target.r, target.c, dir).length;
+        const el=document.createElement('div'); el.className='clue'; el.dataset.num=num; el.dataset.dir=dir;
+        el.innerHTML=`<strong>${num}.</strong> ${map[num].clue} <small>(${len})</small>`;
+        el.addEventListener('click',()=>{
+          focus={r:target.r,c:target.c}; dir=dir;
+          updateHighlights(); updateActiveClue(); validateWordAt(target.r,target.c,dir);
+          drawer.classList.add('collapsed'); computeLayout(); app.focus?.();
+        });
+        (dir==='across'?acrossCluesEl:downCluesEl).appendChild(el);
+      });
+    };
+    add(window.CLUES_ACROSS,'across');
+    add(window.CLUES_DOWN,'down');
+  }
+
+  function startCellFor(r,c,d){
+    if (d==='across'){ while (c>0 && !getCell(r,c-1).block) c--; return {r,c}; }
+    while (r>0 && !getCell(r-1,c).block) r--; return {r,c};
+  }
+  function allStarts(dirWant){
+    const out=[];
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (window.LAYOUT[r][c]===null) continue;
+        const startA = (c===0||window.LAYOUT[r][c-1]===null);
+        const startD = (r===0||window.LAYOUT[r-1]?.[c]===null);
+        if (dirWant==='across' && startA) out.push({r,c,dir:'across', num: grid[r][c].num});
+        if (dirWant==='down'   && startD)  out.push({r,c,dir:'down',   num: grid[r][c].num});
+      }
+    }
+    return out.filter(s=>s.num).sort((a,b)=>a.num-b.num);
+  }
+  function jumpClue(delta){
+    const sc = startCellFor(focus.r, focus.c, dir);
+    const currentNum = grid[sc.r][sc.c].num || 1;
+    const list = allStarts(dir);
+    const idx  = Math.max(0, list.findIndex(s=>s.num==currentNum));
+    const next = list[(idx + delta + list.length) % list.length] || list[0];
+    if (!next) return;
+    dir = next.dir; focus = { r: next.r, c: next.c };
+    updateHighlights(); updateActiveClue(); validateWordAt(next.r,next.c,dir);
+    cellEl(next.r,next.c)?.scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+
+  function updateActiveClue(){
+    const cell=getCell(focus.r,focus.c);
+    if (!cell || cell.block){
+      activeClueEl.textContent='Tap any cell to begin.';
+      clueTextEl.textContent = 'Tap a cell to begin.';
+      return;
+    }
+    const start = (() => {
+      if (dir==='across'){ let cc=focus.c; while (cc>0 && !getCell(focus.r,cc-1).block) cc--; return getCell(focus.r,cc); }
+      let rr=focus.r; while (rr>0 && !getCell(rr-1,focus.c).block) rr--; return getCell(rr,focus.c);
+    })();
+    const num = start.num || '';
+    const obj=(dir==='across'?window.CLUES_ACROSS[num]:window.CLUES_DOWN[num]);
+    const text=obj?obj.clue:''; const len=currentWordCells().length;
+
+    activeClueEl.innerHTML = num ? `<strong>${num}.</strong> ${text} <small>(${len})</small>` : '(Select a numbered start)';
+    clueTextEl.textContent = num ? `${num}. ${text} (${len}) — ${dir.toUpperCase()}` : '(Select a numbered start)';
+
+    document.querySelectorAll('.clue').forEach(el=>el.classList.remove('active'));
+    const el=document.querySelector(`.clue[data-dir="${dir}"][data-num="${num}"]`); if (el) el.classList.add('active');
+  }
+
+  function storageKeyForSet(){ return `${STORAGE_KEY}::${currentSetIndex}`; }
+  function saveLetters(){
+    const letters=grid.map(row=>row.map(c=>c.letter));
+    localStorage.setItem(storageKeyForSet(), JSON.stringify({letters,focus,dir}));
+  }
+  function loadLetters(){
+    const raw=localStorage.getItem(storageKeyForSet()); if (!raw) return;
+    try{
+      const {letters,focus:f,dir:d}=JSON.parse(raw);
+      letters?.forEach((row,r)=>row.forEach((ch,c)=>{ if (!getCell(r,c).block){ grid[r][c].letter=ch||''; } }));
+      focus=f||focus; dir=d||dir;
+    }catch{}
+  }
+  function resetPuzzle(){ localStorage.removeItem(storageKeyForSet()); loadSet(currentSetIndex); toast('Puzzle reset.'); }
+
+  function filledCount(){ let n=0; for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (window.LAYOUT[r][c]!==null && grid[r][c].letter?.trim()) n++; return n; }
+  function totalPlayable(){ let n=0; for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++) if (window.LAYOUT[r][c]!==null) n++; return n; }
+  function updateProgress(){ progressFill.style.width = Math.round((filledCount()/totalPlayable())*100)+'%'; }
+
+  function clearAllLetters(){
+    for (let r=0;r<ROWS;r++){
+      for (let c=0;c<COLS;c++){
+        if (window.LAYOUT[r][c]===null) continue;
+        const cell = grid[r][c];
+        cell.letter = '';
+        const el = cellEl(r,c);
+        if (el){
+          el.querySelector('.letter').textContent = '';
+          el.dataset.stateacross = '';
+          el.dataset.statedown   = '';
+          el.classList.remove('ok','bad','active','focus');
         }
-        return true;
-      } catch {
-        return false;
+      }
+    }
+    localStorage.removeItem(storageKeyForSet());
+    updateProgress();
+  }
+
+  // ===== Board-confined confetti =====
+  function runConfetti({
+    target = document.querySelector('.board'),
+    bursts = 2,
+    perBurst = 120,
+    duration = 1600,
+    emojiChance = 0.08,
+    burstGap = 140,
+  } = {}) {
+    if (!target) return Promise.resolve();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+
+    const rect = target.getBoundingClientRect();
+    const W = Math.floor(rect.width);
+    const H = Math.floor(rect.height);
+
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const area = W * H;
+    const scale = Math.min(1, (area / (720*720)) * (1 / dpr));
+    const totalPerBurst = Math.max(60, Math.floor(perBurst * scale));
+
+    const wrap = document.createElement('div');
+    wrap.className = 'confetti-wrap';
+    wrap.style.cssText = `
+      position:absolute; inset:0; pointer-events:none; z-index:50; overflow:hidden;
+    `;
+    target.appendChild(wrap);
+
+    const colors = ['#22d3ee','#38bdf8','#60a5fa','#34d399','#fbbf24','#f472b6','#ef4444','#22c55e','#a78bfa','#f59e0b'];
+    const emojis = ['🎉','🎊','✨','🌟','🎈','💫'];
+
+    const sources = [
+      { x: 0.15 },
+      { x: 0.50 },
+      { x: 0.85 },
+    ];
+
+    for (let b = 0; b < bursts; b++) {
+      setTimeout(() => {
+        const src = sources[b % sources.length];
+        for (let i = 0; i < totalPerBurst; i++) {
+          const piece = document.createElement('i');
+          const isEmoji = Math.random() < emojiChance;
+
+          const startX = (src.x * W) + (Math.random()*120 - 60);
+          const startY = H * 0.82 + (Math.random()*40 - 20);
+          const driftX = (Math.random() * 0.48 - 0.24) * W;
+          const rise   = -(Math.random()*0.22 + 0.14) * H;
+          const fall   = 0.28 * H;
+          const rot    = Math.random() * 360;
+          const delay  = Math.random() * 120;
+          const scaleP = isEmoji ? (Math.random()*0.7 + 0.9) : (Math.random()*0.7 + 0.6);
+
+          piece.style.setProperty('--sx', `${startX}px`);
+          piece.style.setProperty('--sy', `${startY}px`);
+          piece.style.setProperty('--dx', `${driftX}px`);
+          piece.style.setProperty('--rise', `${rise}px`);
+          piece.style.setProperty('--fall', `${fall}px`);
+          piece.style.setProperty('--rot', `${rot}deg`);
+          piece.style.setProperty('--scale', scaleP);
+          piece.style.setProperty('--t', `${duration}ms`);
+          piece.style.setProperty('--delay', `${delay}ms`);
+
+          if (isEmoji) {
+            piece.textContent = emojis[(Math.random()*emojis.length)|0];
+            piece.className = 'confetti emoji';
+          } else {
+            piece.className = 'confetti rect';
+            piece.style.background = `linear-gradient(135deg, ${colors[(Math.random()*colors.length)|0]}, #fff)`;
+          }
+          wrap.appendChild(piece);
+        }
+      }, b * burstGap);
+    }
+
+    const SID = 'confetti-css-lite-board';
+    if (!document.getElementById(SID)) {
+      const css = document.createElement('style');
+      css.id = SID;
+      css.textContent = `
+        .confetti-wrap .confetti{
+          position:absolute;
+          left:var(--sx); top:var(--sy);
+          transform:translate3d(0,0,0) rotate(var(--rot)) scale(var(--scale));
+          will-change: transform, opacity;
+          animation: confettiFall var(--t) cubic-bezier(.2,.6,.2,1) var(--delay) forwards,
+                     confettiSpin var(--t) linear var(--delay) forwards;
+        }
+        .confetti-wrap .confetti.rect{
+          width:10px; height:14px; border-radius:2px;
+          box-shadow:0 0 0 1px rgba(255,255,255,.45) inset;
+        }
+        .confetti-wrap .confetti.emoji{
+          font-size:28px; line-height:1;
+          filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
+          animation: confettiFall var(--t) cubic-bezier(.2,.6,.2,1) var(--delay) forwards,
+                     confettiBob var(--t) ease-in-out var(--delay) forwards;
+        }
+        @keyframes confettiFall{
+          0%   { transform: translate3d(0,0,0) rotate(var(--rot)) scale(var(--scale)); opacity:1; }
+          45%  { transform: translate3d(calc(var(--dx)*0.5), var(--rise), 0) rotate(calc(var(--rot) + 90deg)) scale(var(--scale)); }
+          100% { transform: translate3d(var(--dx), var(--fall), 0) rotate(calc(var(--rot) + 240deg)) scale(var(--scale)); opacity:0; }
+        }
+        @keyframes confettiSpin{
+          0% { filter:brightness(1); }
+          50%{ filter:brightness(1.15); }
+          100%{ filter:brightness(1); }
+        }
+        @keyframes confettiBob{
+          0% { transform: translate3d(0,0,0) rotate(0deg) scale(var(--scale)); }
+          100% { transform: translate3d(var(--dx), var(--fall), 0) rotate(360deg) scale(var(--scale)); }
+        }
+      `;
+      document.head.appendChild(css);
+    }
+
+    const totalTime = bursts * burstGap + duration + 600;
+    return new Promise(resolve => {
+      setTimeout(() => { wrap.remove(); resolve(); }, totalTime);
+    });
+  }
+
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+  let __SOLVED_LOCK__ = false;
+
+  function randomOtherIndex(cur,n){
+    const opts=[...Array(n).keys()].filter(i=>i!==cur);
+    return opts[Math.floor(Math.random()*opts.length)] || cur;
+  }
+
+  async function finalCheckIfSolved(){
+    if (__SOLVED_LOCK__) return;
+
+    // check all across words
+    for (let r=0;r<ROWS;r++) for (let c=0;c<COLS;c++){
+      if (window.LAYOUT[r][c]===null) continue;
+      const startA=(c===0||window.LAYOUT[r][c-1]===null);
+      if (startA){
+        const cells=wordCellsAt(r,c,'across');
+        const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
+        const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
+        if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
+      }
+    }
+    // check all down words
+    for (let c=0;c<COLS;c++) for (let r=0;r<ROWS;r++){
+      if (window.LAYOUT[r][c]===null) continue;
+      const startD=(r===0||window.LAYOUT[r-1]?.[c]===null);
+      if (startD){
+        const cells=wordCellsAt(r,c,'down');
+        const g=cells.map(({r,c})=>(grid[r][c].letter||'').toUpperCase());
+        const w=cells.map(({r,c})=>(window.SOLUTION[r][c]||'').toUpperCase());
+        if (g.some(ch=>!ch) || g.join('')!==w.join('')) return;
       }
     }
 
-    async function engage() {
-      // Try to enter fullscreen; navigate regardless of outcome.
-      await enterFullscreen();
-      // small micro-delay helps some TVs settle before navigating
-      setTimeout(go, 50);
+    __SOLVED_LOCK__ = true;
+    toast('✅ Correct!');
+
+    await runConfetti({
+      target: document.querySelector('.board'),
+      bursts: 3,
+      perBurst: 120,
+      duration: 1600,
+      emojiChance: 0.06
+    });
+    await sleep(500);
+
+    // prepare random next set, clear this set, and go back to landing
+    clearAllLetters();
+    const next = randomOtherIndex(currentSetIndex, SETS.length);
+    localStorage.setItem(CURRENT_SET_KEY, String(next));
+    pendingSetIndex = next;
+    pendingNewSet   = true;
+    setMode('landing');
+
+    __SOLVED_LOCK__ = false;
+  }
+
+  function toast(msg){
+    const t=document.createElement('div');
+    t.className='toast';
+    t.textContent=msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),1700);
+  }
+
+  // ---- FX canvas (kept for possible future use) ----
+  const FX = (() => {
+    const cvs = document.getElementById('fx');
+    const ctx = cvs.getContext('2d', { alpha:true });
+    let W=0,H=0, running=false, parts=[];
+
+    const PAL = ['#60a5fa','#38bdf8','#22d3ee','#a78bfa','#f472b6','#34d399','#facc15'];
+    const rand = (a,b)=>a+Math.random()*(b-a);
+    const PI = Math.PI;
+
+    function resize(){
+      const dpr = Math.max(1, devicePixelRatio||1);
+      W = cvs.width  = Math.floor(innerWidth  * dpr);
+      H = cvs.height = Math.floor(innerHeight * dpr);
+      cvs.style.width  = innerWidth  + 'px';
+      cvs.style.height = innerHeight + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    resize(); addEventListener('resize',resize);
+    if (visualViewport) visualViewport.addEventListener('resize',resize);
+    function push(p){ parts.push(p); }
+
+    function confetti(x,y,vx,vy,life=2600){
+      const w = rand(6,12), h = rand(10,18);
+      const col = PAL[(Math.random()*PAL.length)|0];
+      const rot = rand(0,PI*2), vr = rand(-0.4,0.4);
+      const drag = rand(0.994,0.998), g = rand(0.22,0.32);
+      push({type:'rect',x,y,vx,vy,w,h,col,rot,vr,life,t0:performance.now(),drag,g, sway:rand(0.002,0.006), glow:true});
+    }
+    function sparkle(x,y,vx,vy,life=1100){
+      push({type:'dot',x,y,vx,vy,r:rand(1.5,3.2),col:'#fff',life,t0:performance.now(),drag:0.993,g:0.18,glow:true});
+    }
+    function streamer(x,y,ang,power,life=2200){
+      const vx = Math.cos(ang)*power, vy = Math.sin(ang)*power;
+      push({type:'ribbon',x,y,vx,vy,life,t0:performance.now(),drag:0.995,g:0.24,
+            path:[], curl:rand(0.012,0.02), len:18, col:PAL[(Math.random()*PAL.length)|0], glow:true});
     }
 
-    const spot = document.getElementById('hotspot');
-    const fsBtn = document.getElementById('fsBtn');
-
-    // Navigate on any click/tap
-    spot.addEventListener('pointerdown', function(e){
-      e.preventDefault();
-      engage();
-    }, { passive: false });
-
-    // Keyboard/remote support (Enter/Space/OK key)
-    window.addEventListener('keydown', function(e){
-      const k = e.key;
-      if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
-        e.preventDefault();
-        engage();
+    function burst({x=innerWidth/2,y=innerHeight*0.35,count=220,spread=PI*1.1,power=18,life=2800}={}){
+      const base = PI/2;
+      for(let i=0;i<count;i++){
+        const ang = base + (Math.random()*spread - spread/2);
+        const spd = power * rand(0.6,1.2);
+        confetti(x,y,Math.cos(ang)*spd,Math.sin(ang)*spd, life*rand(0.85,1.1));
+        if (Math.random()<0.35) sparkle(x,y,Math.cos(ang)*spd*0.6,Math.sin(ang)*spd*0.6, 900);
+        if (Math.random()<0.12) streamer(x,y,ang, power*0.9, life*0.9);
       }
-    }, { capture: true });
+    }
 
-    // Fullscreen button only (no navigation)
-    if (fsBtn) {
-      fsBtn.addEventListener('click', async function(e){
-        e.preventDefault();
-        e.stopPropagation(); // don't trigger hotspot
-        await enterFullscreen();
+    function rain({duration=2400,rate=240,power=8}={}){
+      const start = performance.now();
+      return new Promise(resolve=>{
+        const step=(now)=>{
+          if (now-start<duration){
+            const n = Math.max(1,Math.round(rate/60));
+            for(let i=0;i<n;i++){
+              const x = Math.random()*innerWidth, y=-20;
+              confetti(x,y,rand(-1,1),rand(power*0.7,power*1.2), rand(2100,2700));
+              if (Math.random()<0.25) sparkle(x,y,rand(-0.6,0.6),rand(power*0.5,power), 800);
+            }
+            requestAnimationFrame(step);
+          } else resolve();
+        };
+        requestAnimationFrame(step);
       });
     }
 
-    // Focus the hotspot for remotes
-    spot.tabIndex = 0;
-    spot.focus();
+    async function grandFinale({duration=3000}={}){
+      const cx = innerWidth/2, cy = innerHeight*0.33;
+      burst({x:cx, y:cy, count:260, power:20, life:3200});
+      setTimeout(()=> burst({x:cx*0.35, y:cy*1.02, count:180, power:18, life:3000}), 180);
+      setTimeout(()=> burst({x:cx*1.65, y:cy*1.02, count:180, power:18, life:3000}), 360);
+      setTimeout(()=> burst({x:cx, y:cy*0.82, count:220, power:19, life:3200}), 620);
+      await rain({duration, rate:300, power:9});
+
+      if (!running){ running=true; requestAnimationFrame(tick); }
+      await new Promise(res=>{
+        const chk=()=> parts.length? requestAnimationFrame(chk) : res();
+        chk();
+      });
+    }
+
+    function tick(now){
+      ctx.clearRect(0,0,innerWidth,innerHeight);
+      ctx.globalCompositeOperation = 'lighter';
+      parts = parts.filter(p => now - p.t0 < p.life);
+
+      for (const p of parts){
+        const t = (now - p.t0) / p.life;
+        p.vx *= p.drag; p.vy = p.vy*p.drag + p.g;
+        p.x += p.vx + (p.sway? Math.sin(now*p.sway)*0.8 : 0);
+        p.y += p.vy;
+        if (p.vr) p.rot += p.vr;
+        if (p.type==='ribbon'){
+          p.path.push([p.x,p.y]);
+          if (p.path.length>p.len) p.path.shift();
+        }
+
+        const a = Math.max(0,1 - t);
+        ctx.save();
+        if (p.glow){ ctx.shadowColor = p.col||'#fff'; ctx.shadowBlur = 12; }
+        ctx.globalAlpha = a;
+
+        if (p.type==='rect'){
+          ctx.translate(p.x,p.y); ctx.rotate(p.rot||0);
+          const g = ctx.createLinearGradient(-p.w/2,-p.h/2,p.w/2,p.h/2);
+          g.addColorStop(0, p.col); g.addColorStop(1, '#ffffff');
+          ctx.fillStyle = g;
+          ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+        } else if (p.type==='dot'){
+          ctx.beginPath(); ctx.fillStyle=p.col; ctx.arc(p.x,p.y,p.r,0,PI*2); ctx.fill();
+        } else if (p.type==='ribbon'){
+          ctx.strokeStyle = p.col; ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          for(let i=0;i<p.path.length;i++){
+            const [x,y]=p.path[i];
+            const off = Math.sin(i*0.9 + now*p.curl)*3.2;
+            if (i===0) ctx.moveTo(x+off,y);
+            else ctx.lineTo(x+off,y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      if (parts.length) requestAnimationFrame(tick);
+      else { running=false; ctx.globalCompositeOperation='source-over'; ctx.clearRect(0,0,innerWidth,innerHeight); }
+    }
+
+    return { grandFinale };
   })();
+
+  // ------------ responsive layout ------------
+  function computeLayout(){
+    const styles = getComputedStyle(document.documentElement);
+    const gutter = parseInt(styles.getPropertyValue('--gutter')) || 0;
+
+    const vw = Math.max(0, innerWidth  - gutter*2);
+    const vh = Math.max(0, innerHeight - gutter*2);
+
+    const topbarH   = document.querySelector('.topbar')?.offsetHeight || 0;
+    const progressH = (innerWidth <= 740 ? 4 : 10);
+
+    const drawerVisible = !drawer.classList.contains('collapsed');
+    let drawerW = 0;
+    if (drawerVisible) drawerW = Math.min(320, Math.floor(vw * 0.35)) + 10;
+    document.documentElement.style.setProperty('--drawerW', drawerW + 'px');
+
+    const portrait = vh >= vw;
+    let kbFrac = portrait ? 0.20 : 0.24;
+    if (vw <= 740) kbFrac = 0.14;
+    if (vw <= 720) kbFrac = 0.135;
+
+    const kbH   = Math.max(132, Math.min(240, Math.floor((vh - topbarH) * kbFrac)));
+    const kbRow = Math.max(52, Math.min(78, Math.floor(kbH / 4) - 4));
+    document.documentElement.style.setProperty('--kb-row', kbRow + 'px');
+
+    const sidePad = (vw <= 720) ? 0 : (vw <= 740 ? 6 : 10);
+    const availW  = vw - drawerW - sidePad * 2;
+
+    const ribbonH = document.getElementById('clueRibbon')?.offsetHeight || 0;
+    const kbWrapH = document.querySelector('.kb-wrap')?.offsetHeight || (kbRow * 4 + 26);
+    const hintH   = 0;
+
+    const verticalUsed = topbarH + progressH + ribbonH + kbWrapH + hintH + 24;
+    const availH  = Math.max(200, vh - verticalUsed);
+
+    const size = Math.max(280, Math.min(980, availW, availH));
+    document.documentElement.style.setProperty('--board-size', size + 'px');
+  }
+
+  const savedIdxRaw = localStorage.getItem(CURRENT_SET_KEY);
+  const savedIdx = Number(savedIdxRaw);
+  const startIdx = Number.isInteger(savedIdx) && savedIdx >= 0 && savedIdx < SETS.length
+    ? savedIdx
+    : Math.floor(Math.random() * SETS.length);
+
+  loadSet(startIdx);
+
+  window.computeLayout = computeLayout;
+  addEventListener('resize', computeLayout);
+  addEventListener('orientationchange', computeLayout);
+  if (window.visualViewport){ window.visualViewport.addEventListener('resize', computeLayout); }
+  queueMicrotask(()=>{ app.focus(); computeLayout(); });
+
+  // initial mode
+  setMode('landing');
+})();
 </script>
 </body>
 </html>
