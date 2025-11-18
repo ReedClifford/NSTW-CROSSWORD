@@ -985,10 +985,10 @@
   const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
   let __SOLVED_LOCK__ = false;
 
-  function randomOtherIndex(cur,n){
-    const opts=[...Array(n).keys()].filter(i=>i!==cur);
-    return opts[Math.floor(Math.random()*opts.length)] || cur;
-  }
+  // function randomOtherIndex(cur,n){
+  //   const opts=[...Array(n).keys()].filter(i=>i!==cur);
+  //   return opts[Math.floor(Math.random()*opts.length)] || cur;
+  // }
 
   async function finalCheckIfSolved(){
     if (__SOLVED_LOCK__) return;
@@ -1029,11 +1029,21 @@
     await sleep(500);
 
     // prepare random next set, clear this set, and go back to landing
-    clearAllLetters();
-    const next = randomOtherIndex(currentSetIndex, SETS.length);
+    // clearAllLetters();
+    // const next = randomOtherIndex(currentSetIndex, SETS.length);
+    // localStorage.setItem(CURRENT_SET_KEY, String(next));
+    // pendingSetIndex = next;
+    // pendingNewSet   = true;
+    // setMode('landing');
+
+
+        clearAllLetters();
+
+    const next = (currentSetIndex + 1) % SETS.length;  // 0→1→2→0→1→2...
     localStorage.setItem(CURRENT_SET_KEY, String(next));
     pendingSetIndex = next;
     pendingNewSet   = true;
+
     setMode('landing');
 
     __SOLVED_LOCK__ = false;
